@@ -914,6 +914,115 @@ void RssActivity::runBackgroundFetch() {
   pendingUpdateFeed = true;
 }
 
+void RssActivity::downloadActivePost() {
+  if (selectedItemIndex < 0 || selectedItemIndex >= static_cast<int>(allItems.size())) {
+    return;
+  }
+  
+  std::string downloadUrl = allItems[selectedItemIndex].link;
+  std::string downloadTitle = allItems[selectedItemIndex].title;
+  
+  // Clear the items list and shrink to fit to free up massive heap RAM
+  allItems.clear();
+  allItems.shrink_to_fit();
+  
+  GUI.drawPopup(renderer, "Connecting to WiFi...");
+  if (WifiConnectHelper::ensureWifiConnected()) {
+    wifiWasUsed = true;
+    std::string sanitized = sanitizeFilename(downloadTitle);
+    if (sanitized.length() > 30) {
+      sanitized = sanitized.substr(0, 30);
+    }
+    Storage.ensureDirectoryExists("/websites");
+    std::string tempPath = "/websites/temp_download.tmp";
+    
+    bool success = false;
+    int retries = 3;
+    
+    while (retries > 0) {
+      GUI.drawPopup(renderer, "Downloading...");
+      
+      auto result = HttpDownloader::downloadToFile(downloadUrl.c_str(), tempPath.c_str(), nullptr, nullptr, "", "");
+      if (result == HttpDownloader::OK) {
+        success = true;
+        break;
+      }
+      retries--;
+      if (retries > 0) {
+        delay(1000);
+      }
+    }
+    
+    if (success) {
+      std::string ext = ".html";
+      std::string urlToCheck = downloadUrl;
+      
+      size_t queryPos = urlToCheck.find('?');
+      if (queryPos != std::string::npos) {
+        urlToCheck = urlToCheck.substr(0, queryPos);
+      }
+      
+      bool isTxt = false;
+      if (urlToCheck.length() >= 4) {
+        std::string urlExt = urlToCheck.substr(urlToCheck.length() - 4);
+        for (char &c : urlExt) c = tolower(c);
+        if (urlExt == ".txt") {
+          isTxt = true;
+        }
+      }
+      
+      if (isTxt) {
+        ext = ".txt";
+      }
+      
+      std::string destPath = "/websites/" + sanitized + ext;
+      {
+        RenderLock lock;
+        if (Storage.exists(destPath.c_str())) {
+          Storage.remove(destPath.c_str());
+        }
+        Storage.rename(tempPath.c_str(), destPath.c_str());
+      }
+      
+      // Reload feeds and selected post details to restore state
+      loadOfflineFeeds();
+      if (state == RssState::PostDetail && selectedItemIndex >= 0 && selectedItemIndex < static_cast<int>(allItems.size())) {
+        const auto& item = allItems[selectedItemIndex];
+        std::string filename = getSanitizedUrlFilename(activeFeed);
+        std::string filepath = "/apps/rss/" + filename + ".md";
+        loadSingleItemDetails(filepath, item.link, allItems[selectedItemIndex].description, allItems[selectedItemIndex].content);
+      }
+      
+      activityManager.pushReader(destPath);
+    } else {
+      // Reload feeds and selected post details to restore state
+      loadOfflineFeeds();
+      if (state == RssState::PostDetail && selectedItemIndex >= 0 && selectedItemIndex < static_cast<int>(allItems.size())) {
+        const auto& item = allItems[selectedItemIndex];
+        std::string filename = getSanitizedUrlFilename(activeFeed);
+        std::string filepath = "/apps/rss/" + filename + ".md";
+        loadSingleItemDetails(filepath, item.link, allItems[selectedItemIndex].description, allItems[selectedItemIndex].content);
+      }
+      
+      GUI.drawPopup(renderer, "Download failed!");
+      delay(2000);
+      requestUpdate();
+    }
+    WiFi.disconnect(true);
+    WiFi.mode(WIFI_OFF);
+  } else {
+    // Reload feeds and selected post details to restore state
+    loadOfflineFeeds();
+    if (state == RssState::PostDetail && selectedItemIndex >= 0 && selectedItemIndex < static_cast<int>(allItems.size())) {
+      const auto& item = allItems[selectedItemIndex];
+      std::string filename = getSanitizedUrlFilename(activeFeed);
+      std::string filepath = "/apps/rss/" + filename + ".md";
+      loadSingleItemDetails(filepath, item.link, allItems[selectedItemIndex].description, allItems[selectedItemIndex].content);
+    }
+    requestUpdate();
+  }
+}
+
 void RssActivity::onEnter() {
   Activity::onEnter();
   ensureDirectoriesExist();
@@ -1176,75 +1285,7 @@ void RssActivity::loop() {
         detailScrollOffset = 0;
         requestUpdate();
       } else if (mappedInput.wasReleased(MappedInputManager::Button::Confirm)) {
-        const auto& item = allItems[selectedItemIndex];
-        GUI.drawPopup(renderer, "Connecting to WiFi...");
-        if (WifiConnectHelper::ensureWifiConnected()) {
-          wifiWasUsed = true;
-          std::string sanitized = sanitizeFilename(item.title);
-          if (sanitized.length() > 30) {
-            sanitized = sanitized.substr(0, 30);
-          }
-          Storage.ensureDirectoryExists("/websites");
-          std::string tempPath = "/websites/temp_download.tmp";
-          
-          bool success = false;
-          int retries = 3;
-          
-          while (retries > 0) {
-            GUI.drawPopup(renderer, "Downloading...");
-            
-            auto result = HttpDownloader::downloadToFile(item.link.c_str(), tempPath.c_str(), nullptr, nullptr, "", "");
-            if (result == HttpDownloader::OK) {
-              success = true;
-              break;
-            }
-            retries--;
-            if (retries > 0) {
-              delay(1000);
-            }
-          }
-          
-          if (success) {
-            std::string ext = ".html";
-            std::string urlToCheck = item.link;
-            
-            size_t queryPos = urlToCheck.find('?');
-            if (queryPos != std::string::npos) {
-              urlToCheck = urlToCheck.substr(0, queryPos);
-            }
-            
-            bool isTxt = false;
-            if (urlToCheck.length() >= 4) {
-              std::string urlExt = urlToCheck.substr(urlToCheck.length() - 4);
-              for (char &c : urlExt) c = tolower(c);
-              if (urlExt == ".txt") {
-                isTxt = true;
-              }
-            }
-            
-            if (isTxt) {
-              ext = ".txt";
-            }
-            
-            std::string destPath = "/websites/" + sanitized + ext;
-            {
-              RenderLock lock;
-              if (Storage.exists(destPath.c_str())) {
-                Storage.remove(destPath.c_str());
-              }
-              Storage.rename(tempPath.c_str(), destPath.c_str());
-            }
-            activityManager.pushReader(destPath);
-          } else {
-            GUI.drawPopup(renderer, "Download failed!");
-            delay(2000);
-            requestUpdate();
-          }
-          WiFi.disconnect(true);
-          WiFi.mode(WIFI_OFF);
-        } else {
-          requestUpdate();
-        }
+        downloadActivePost();
       }
     }
   } else if (state == RssState::PostDetail) {
@@ -1257,75 +1298,7 @@ void RssActivity::loop() {
       detailScrollOffset++;
       requestUpdate();
     } else if (mappedInput.wasReleased(MappedInputManager::Button::Confirm)) {
-        const auto& item = allItems[selectedItemIndex];
-        GUI.drawPopup(renderer, "Connecting to WiFi...");
-        if (WifiConnectHelper::ensureWifiConnected()) {
-          wifiWasUsed = true;
-          std::string sanitized = sanitizeFilename(item.title);
-          if (sanitized.length() > 30) {
-            sanitized = sanitized.substr(0, 30);
-          }
-          Storage.ensureDirectoryExists("/websites");
-          std::string tempPath = "/websites/temp_download.tmp";
-          
-          bool success = false;
-          int retries = 3;
-          
-          while (retries > 0) {
-            GUI.drawPopup(renderer, "Downloading...");
-            
-            auto result = HttpDownloader::downloadToFile(item.link.c_str(), tempPath.c_str(), nullptr, nullptr, "", "");
-            if (result == HttpDownloader::OK) {
-              success = true;
-              break;
-            }
-            retries--;
-            if (retries > 0) {
-              delay(1000);
-            }
-          }
-          
-          if (success) {
-            std::string ext = ".html";
-            std::string urlToCheck = item.link;
-            
-            size_t queryPos = urlToCheck.find('?');
-            if (queryPos != std::string::npos) {
-              urlToCheck = urlToCheck.substr(0, queryPos);
-            }
-            
-            bool isTxt = false;
-            if (urlToCheck.length() >= 4) {
-              std::string urlExt = urlToCheck.substr(urlToCheck.length() - 4);
-              for (char &c : urlExt) c = tolower(c);
-              if (urlExt == ".txt") {
-                isTxt = true;
-              }
-            }
-            
-            if (isTxt) {
-              ext = ".txt";
-            }
-            
-            std::string destPath = "/websites/" + sanitized + ext;
-            {
-              RenderLock lock;
-              if (Storage.exists(destPath.c_str())) {
-                Storage.remove(destPath.c_str());
-              }
-              Storage.rename(tempPath.c_str(), destPath.c_str());
-            }
-            activityManager.pushReader(destPath);
-          } else {
-            GUI.drawPopup(renderer, "Download failed!");
-            delay(2000);
-            requestUpdate();
-          }
-          WiFi.disconnect(true);
-          WiFi.mode(WIFI_OFF);
-        } else {
-          requestUpdate();
-        }
+        downloadActivePost();
       }
   }
 }

@@ -48,6 +48,7 @@ class RssActivity final : public Activity {
    void ensureDirectoriesExist();
 
    bool parseFeedsFromMarkdown(const std::string &filepath, std::vector<RssItem> &targetList, bool summaryOnly = false);
+   void downloadActivePost();
 
  public:
   void runBackgroundFetch();
