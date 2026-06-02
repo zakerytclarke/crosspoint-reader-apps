@@ -25,18 +25,22 @@ In addition to all the fantastic EPUB rendering, custom fonts, and library manag
 
 
 ## Gallery
-![Weather](./docs/images/apps/weather.png)
-![Wikipedia](./docs/images/apps/wikipedia.png)
-![RSS](./docs/images/apps/rss.png)
-![Reddit](./docs/images/apps/reddit.png)
-![DDG](./docs/images/apps/duckduckgo.png)
-![Markdown](./docs/images/apps/markdown.png)
-![HTML](./docs/images/apps/html.png)
-![Calculator](./docs/images/apps/calculator.png)
-![Chess](./docs/images/apps/chess.png)
-![Dice](./docs/images/apps/dice.png)
-![Sudoku](./docs/images/apps/sudoku.png)
-
+<table>
+  <tr>
+    <td><img src="./docs/images/apps/weather.png" alt="Weather" width="60"></td>
+    <td><img src="./docs/images/apps/rss.png" alt="RSS" width="60"></td>
+    <td><img src="./docs/images/apps/reddit.png" alt="Reddit" width="60"></td>
+    <td><img src="./docs/images/apps/duckduckgo.png" alt="DDG" width="60"></td>
+    <td><img src="./docs/images/apps/markdown.png" alt="Markdown" width="60"></td>
+  </tr>
+  <tr>
+    <td><img src="./docs/images/apps/html.png" alt="HTML" width="60"></td>
+    <td><img src="./docs/images/apps/calculator.png" alt="Calculator" width="60"></td>
+    <td><img src="./docs/images/apps/chess.png" alt="Chess" width="60"></td>
+    <td><img src="./docs/images/apps/dice.png" alt="Dice" width="60"></td>
+    <td><img src="./docs/images/apps/sudoku.png" alt="Sudoku" width="60"></td>
+  </tr>
+</table>
 
 
 ## Install Firmware
