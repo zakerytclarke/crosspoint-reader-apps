@@ -1,6 +1,7 @@
 #include "TxtReaderActivity.h"
 
 #include <algorithm>
+#include <BidiUtils.h>
 #include <FontCacheManager.h>
 #include <FsHelpers.h>
 #include <GfxRenderer.h>
@@ -823,20 +824,27 @@ void TxtReaderActivity::renderPage() {
       } else if (!line.empty()) {
         int x = cachedOrientedMarginLeft + indent;
 
+        const bool lineIsRtl = BidiUtils::startsWithRtl(line.c_str(), BidiUtils::RTL_PARAGRAPH_PROBE_DEPTH);
+        uint8_t effectiveAlignment = cachedParagraphAlignment;
+        if (lineIsRtl && (effectiveAlignment == CrossPointSettings::LEFT_ALIGN ||
+                          effectiveAlignment == CrossPointSettings::JUSTIFIED)) {
+          effectiveAlignment = CrossPointSettings::RIGHT_ALIGN;
+        }
+
         // Apply text alignment
-        switch (cachedParagraphAlignment) {
+        switch (effectiveAlignment) {
           case CrossPointSettings::LEFT_ALIGN:
           default:
             // x already set
             break;
           case CrossPointSettings::CENTER_ALIGN: {
             int textWidth = renderer.getTextAdvanceX(cachedFontId, line.c_str(), style);
-            x = cachedOrientedMarginLeft + indent + (viewportWidth - indent - textWidth) / 2;
+            x = cachedOrientedMarginLeft + indent + (contentWidth - indent - textWidth) / 2;
             break;
           }
           case CrossPointSettings::RIGHT_ALIGN: {
             int textWidth = renderer.getTextAdvanceX(cachedFontId, line.c_str(), style);
-            x = cachedOrientedMarginLeft + viewportWidth - textWidth;
+            x = cachedOrientedMarginLeft + contentWidth - textWidth;
             break;
           }
           case CrossPointSettings::JUSTIFIED:

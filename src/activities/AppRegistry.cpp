@@ -3,7 +3,9 @@
 #include "activities/chess/ChessActivity.h"
 #include "activities/dice/DiceActivity.h"
 #include "activities/duckduckgo/DuckDuckGoActivity.h"
-#include "activities/rss/RssActivity.h"
+#include "RssFeedStore.h"
+#include "activities/browser/RssFeedBrowserActivity.h"
+#include "activities/settings/RssFeedListActivity.h"
 #include "activities/sudoku/SudokuActivity.h"
 #include "activities/weather/WeatherActivity.h"
 #include "activities/wikipedia/WikipediaActivity.h"
@@ -94,8 +96,14 @@ AppRegistry::AppRegistry() {
 
   // RSS Feed App
   apps.push_back(std::make_unique<App>(
-      "RSS Feed", UIIcon::Rss, [](GfxRenderer &r, MappedInputManager &i) {
-        return std::make_unique<RssActivity>(r, i);
+      "RSS Feed", UIIcon::Rss,
+      [](GfxRenderer &r, MappedInputManager &i) -> std::unique_ptr<Activity> {
+        const auto &feeds = RSS_STORE.getFeeds();
+        if (feeds.size() == 1) {
+          return std::make_unique<RssFeedBrowserActivity>(r, i, feeds[0]);
+        } else {
+          return std::make_unique<RssFeedListActivity>(r, i, true);
+        }
       }));
 
 
