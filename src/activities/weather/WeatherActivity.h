@@ -1,17 +1,13 @@
 #pragma once
 
-#include "activities/Activity.h"
-#include <string>
 #include <functional>
+#include <string>
+
+#include "activities/Activity.h"
 
 class WeatherActivity final : public Activity {
  public:
-  enum class WeatherState {
-    Init,
-    SelectCity,
-    Loading,
-    ShowWeather
-  };
+  enum class WeatherState { Init, SelectCity, Loading, ShowWeather };
 
  private:
   WeatherState state = WeatherState::Init;
@@ -35,7 +31,6 @@ class WeatherActivity final : public Activity {
 
   void performFetch();
   void cancelFetchTask();
-
 
  public:
   void runBackgroundFetch();

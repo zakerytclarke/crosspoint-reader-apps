@@ -23,12 +23,13 @@ void Activity::setResult(ActivityResult&& result) { this->result = std::move(res
 
 void Activity::finish() { activityManager.popActivity(); }
 
+#include <HalClock.h>
 #include <WiFi.h>
+
+#include "CrossPointSettings.h"
+#include "components/UITheme.h"
 #include "network/WifiSelectionActivity.h"
 #include "util/WifiConnectHelper.h"
-#include "components/UITheme.h"
-#include <HalClock.h>
-#include "CrossPointSettings.h"
 
 void Activity::ensureWifiConnected(std::function<void()> onConnected, std::function<void()> onCancelled) {
   auto syncClockIfNeeded = []() {
@@ -52,8 +53,10 @@ void Activity::ensureWifiConnected(std::function<void()> onConnected, std::funct
                              syncClockIfNeeded();
                              if (onConnected) onConnected();
                            } else {
-                             if (onCancelled) onCancelled();
-                             else requestUpdate();
+                             if (onCancelled)
+                               onCancelled();
+                             else
+                               requestUpdate();
                            }
                          });
 }

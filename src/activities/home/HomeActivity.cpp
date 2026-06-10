@@ -17,10 +17,9 @@
 #include "MappedInputManager.h"
 #include "OpdsServerStore.h"
 #include "RecentBooksStore.h"
+#include "activities/AppRegistry.h"
 #include "components/UITheme.h"
 #include "fontIds.h"
-#include "activities/AppRegistry.h"
-
 
 int HomeActivity::getMenuItemCount() const {
   int count = 0;
@@ -270,8 +269,7 @@ void HomeActivity::render(RenderLock&&) {
                          metrics.homeMenuTopOffset + metrics.buttonHintsHeight)},
       static_cast<int>(menuItems.size()),
       metrics.homeContinueReadingInMenu ? selectorIndex : selectorIndex - recentBooks.size(),
-      [&menuItems](int index) { return menuItems[index]; },
-      [&menuIcons](int index) { return menuIcons[index]; });
+      [&menuItems](int index) { return menuItems[index]; }, [&menuIcons](int index) { return menuIcons[index]; });
 
   const auto labels = mappedInput.mapLabels("", tr(STR_SELECT), tr(STR_DIR_UP), tr(STR_DIR_DOWN));
   GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3, labels.btn4);

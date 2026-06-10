@@ -1,7 +1,8 @@
 #pragma once
 
-#include "activities/Activity.h"
 #include <string>
+
+#include "activities/Activity.h"
 
 class ChessActivity final : public Activity {
  private:

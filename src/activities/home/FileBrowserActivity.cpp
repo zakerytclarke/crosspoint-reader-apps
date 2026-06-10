@@ -54,8 +54,7 @@ void FileBrowserActivity::loadFiles() {
         }
       } else if (FsHelpers::hasEpubExtension(filename) || FsHelpers::hasXtcExtension(filename) ||
                  FsHelpers::hasTxtExtension(filename) || FsHelpers::hasMarkdownExtension(filename) ||
-                 FsHelpers::hasBmpExtension(filename) ||
-                 FsHelpers::checkFileExtension(filename, ".html") ||
+                 FsHelpers::hasBmpExtension(filename) || FsHelpers::checkFileExtension(filename, ".html") ||
                  FsHelpers::checkFileExtension(filename, ".htm")) {
         files.emplace_back(filename);
       }
@@ -247,8 +246,7 @@ void FileBrowserActivity::loop() {
     }
   }
 
-  if (lockNextLeftRightRelease &&
-      !mappedInput.isPressed(MappedInputManager::Button::Left) &&
+  if (lockNextLeftRightRelease && !mappedInput.isPressed(MappedInputManager::Button::Left) &&
       !mappedInput.isPressed(MappedInputManager::Button::Right)) {
     lockNextLeftRightRelease = false;
   }
@@ -420,7 +418,7 @@ void FileBrowserActivity::render(RenderLock&&) {
   // In PickFirmware mode, Confirm on a .bin returns the path to the caller (not "open"); show
   // STR_SELECT instead. Directories in the same picker still descend, so keep STR_OPEN there.
   const bool selectingFirmwareFile = mode == Mode::PickFirmware && !files.empty() && files[selectorIndex].back() != '/';
-  
+
   std::string confirmLabelStr;
   if (!files.empty()) {
     if (selectingFirmwareFile) {

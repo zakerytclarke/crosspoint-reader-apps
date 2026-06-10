@@ -1,33 +1,35 @@
 #include "WikipediaActivity.h"
-#include "MappedInputManager.h"
-#include "activities/ActivityManager.h"
-#include "activities/util/ConfirmationActivity.h"
-#include "activities/util/KeyboardEntryActivity.h"
-#include "activities/util/WifiConnectHelper.h"
-#include "activities/network/WifiSelectionActivity.h"
-#include "SilentRestart.h"
-#include "activities/util/DownloadWatchdog.h"
-#include "activities/reader/TxtReaderActivity.h"
-#include <Txt.h>
-#include "components/UITheme.h"
-#include "fontIds.h"
-#include "network/HttpDownloader.h"
+
 #include <ArduinoJson.h>
 #include <GfxRenderer.h>
 #include <HalStorage.h>
 #include <I18n.h>
+#include <Txt.h>
 #include <WiFi.h>
+
 #include <algorithm>
 #include <cctype>
 #include <cstdlib>
 #include <sstream>
 
+#include "MappedInputManager.h"
+#include "SilentRestart.h"
+#include "activities/ActivityManager.h"
+#include "activities/network/WifiSelectionActivity.h"
+#include "activities/reader/TxtReaderActivity.h"
+#include "activities/util/ConfirmationActivity.h"
+#include "activities/util/DownloadWatchdog.h"
+#include "activities/util/KeyboardEntryActivity.h"
+#include "activities/util/WifiConnectHelper.h"
+#include "components/UITheme.h"
+#include "fontIds.h"
+#include "network/HttpDownloader.h"
+
 namespace {
-std::string sanitizeFilename(const std::string &title) {
+std::string sanitizeFilename(const std::string& title) {
   std::string filename = "";
   for (char c : title) {
-    if (std::isalnum(static_cast<unsigned char>(c)) || c == ' ' || c == '-' ||
-        c == '_') {
+    if (std::isalnum(static_cast<unsigned char>(c)) || c == ' ' || c == '-' || c == '_') {
       filename += c;
     }
   }
@@ -37,41 +39,41 @@ std::string sanitizeFilename(const std::string &title) {
 std::string cleanUnicode(const std::string& input) {
   std::string output = "";
   output.reserve(input.size());
-  for (size_t i = 0; i < input.size(); ) {
+  for (size_t i = 0; i < input.size();) {
     unsigned char c = input[i];
     if (c < 0x80) {
       output += c;
       i++;
-    } else if ((c & 0xE0) == 0xC0) { // 2 bytes
+    } else if ((c & 0xE0) == 0xC0) {  // 2 bytes
       if (i + 1 < input.size()) {
-        unsigned char c2 = input[i+1];
+        unsigned char c2 = input[i + 1];
         uint16_t codepoint = ((c & 0x1F) << 6) | (c2 & 0x3F);
-        if (codepoint == 0x00A0) { // Non-breaking space
+        if (codepoint == 0x00A0) {  // Non-breaking space
           output += ' ';
         } else {
           output += input.substr(i, 2);
         }
       }
       i += 2;
-    } else if ((c & 0xF0) == 0xE0) { // 3 bytes
+    } else if ((c & 0xF0) == 0xE0) {  // 3 bytes
       if (i + 2 < input.size()) {
-        unsigned char c2 = input[i+1];
-        unsigned char c3 = input[i+2];
+        unsigned char c2 = input[i + 1];
+        unsigned char c3 = input[i + 2];
         uint16_t codepoint = ((c & 0x0F) << 12) | ((c2 & 0x3F) << 6) | (c3 & 0x3F);
-        if (codepoint == 0x2018 || codepoint == 0x2019) { // Single quotes
+        if (codepoint == 0x2018 || codepoint == 0x2019) {  // Single quotes
           output += '\'';
-        } else if (codepoint == 0x201C || codepoint == 0x201D) { // Double quotes
+        } else if (codepoint == 0x201C || codepoint == 0x201D) {  // Double quotes
           output += '"';
-        } else if (codepoint == 0x2013 || codepoint == 0x2014) { // En/em dash
+        } else if (codepoint == 0x2013 || codepoint == 0x2014) {  // En/em dash
           output += '-';
-        } else if (codepoint == 0x200B) { // Zero-width space
+        } else if (codepoint == 0x200B) {  // Zero-width space
           // skip it
         } else {
           output += input.substr(i, 3);
         }
       }
       i += 3;
-    } else if ((c & 0xF8) == 0xF0) { // 4 bytes
+    } else if ((c & 0xF8) == 0xF0) {  // 4 bytes
       if (i + 3 < input.size()) {
         output += input.substr(i, 4);
       }
@@ -83,7 +85,7 @@ std::string cleanUnicode(const std::string& input) {
   return output;
 }
 
-std::string convertToMarkdown(const std::string &title, const std::string &text) {
+std::string convertToMarkdown(const std::string& title, const std::string& text) {
   std::string md = "# " + title + "\n\n";
   std::string line;
   std::istringstream stream(text);
@@ -115,7 +117,7 @@ std::string convertToMarkdown(const std::string &title, const std::string &text)
   return md;
 }
 
-std::string getArticleFilePath(const std::string &title) {
+std::string getArticleFilePath(const std::string& title) {
   std::string mdPath = "/apps/wikipedia/" + sanitizeFilename(title) + ".md";
   if (Storage.exists(mdPath.c_str())) {
     return mdPath;
@@ -123,11 +125,10 @@ std::string getArticleFilePath(const std::string &title) {
   return "/apps/wikipedia/" + sanitizeFilename(title) + ".txt";
 }
 
-std::string urlEncode(const std::string &value) {
+std::string urlEncode(const std::string& value) {
   std::string escaped = "";
   for (char c : value) {
-    if (std::isalnum(static_cast<unsigned char>(c)) || c == '-' || c == '_' ||
-        c == '.' || c == '~') {
+    if (std::isalnum(static_cast<unsigned char>(c)) || c == '-' || c == '_' || c == '.' || c == '~') {
       escaped += c;
     } else if (c == ' ') {
       escaped += "%20";
@@ -153,14 +154,7 @@ bool parseAndSaveWikipediaArticle(const std::string& tempJsonPath, std::string& 
     return false;
   }
 
-  enum class ParserState {
-    Scanning,
-    InString,
-    AfterString,
-    ExpectingColon,
-    ExpectingValue,
-    InValueString
-  };
+  enum class ParserState { Scanning, InString, AfterString, ExpectingColon, ExpectingValue, InValueString };
 
   ParserState state = ParserState::Scanning;
   std::string currentKey = "";
@@ -175,7 +169,7 @@ bool parseAndSaveWikipediaArticle(const std::string& tempJsonPath, std::string& 
       mdFile.write("\n", 1);
       return;
     }
-    
+
     size_t startEquals = 0;
     while (startEquals < line.size() && line[startEquals] == '=') {
       startEquals++;
@@ -184,7 +178,7 @@ bool parseAndSaveWikipediaArticle(const std::string& tempJsonPath, std::string& 
     while (endEquals < line.size() && line[line.size() - 1 - endEquals] == '=') {
       endEquals++;
     }
-    
+
     if (startEquals >= 2 && startEquals == endEquals && startEquals < line.size()) {
       std::string headingText = line.substr(startEquals, line.size() - 2 * startEquals);
       size_t first = headingText.find_first_not_of(" ");
@@ -266,12 +260,18 @@ bool parseAndSaveWikipediaArticle(const std::string& tempJsonPath, std::string& 
       case ParserState::InValueString:
         if (inEscape) {
           char escChar = 0;
-          if (ch == 'n') escChar = '\n';
-          else if (ch == 'r') escChar = '\r';
-          else if (ch == 't') escChar = '\t';
-          else if (ch == '"') escChar = '"';
-          else if (ch == '\\') escChar = '\\';
-          else if (ch == '/') escChar = '/';
+          if (ch == 'n')
+            escChar = '\n';
+          else if (ch == 'r')
+            escChar = '\r';
+          else if (ch == 't')
+            escChar = '\t';
+          else if (ch == '"')
+            escChar = '"';
+          else if (ch == '\\')
+            escChar = '\\';
+          else if (ch == '/')
+            escChar = '/';
           else if (ch == 'u') {
             uint16_t codepoint = 0;
             bool ok = true;
@@ -283,9 +283,12 @@ bool parseAndSaveWikipediaArticle(const std::string& tempJsonPath, std::string& 
               }
               char h = static_cast<char>(hexDigit);
               codepoint <<= 4;
-              if (h >= '0' && h <= '9') codepoint |= (h - '0');
-              else if (h >= 'a' && h <= 'f') codepoint |= (h - 'a' + 10);
-              else if (h >= 'A' && h <= 'F') codepoint |= (h - 'A' + 10);
+              if (h >= '0' && h <= '9')
+                codepoint |= (h - '0');
+              else if (h >= 'a' && h <= 'f')
+                codepoint |= (h - 'a' + 10);
+              else if (h >= 'A' && h <= 'F')
+                codepoint |= (h - 'A' + 10);
               else {
                 ok = false;
                 break;
@@ -303,7 +306,7 @@ bool parseAndSaveWikipediaArticle(const std::string& tempJsonPath, std::string& 
                 utf8Str += static_cast<char>(0x80 | ((codepoint >> 6) & 0x3F));
                 utf8Str += static_cast<char>(0x80 | (codepoint & 0x3F));
               }
-              
+
               if (currentKey == "title") {
                 currentValue += utf8Str;
               } else if (currentKey == "extract") {
@@ -313,7 +316,7 @@ bool parseAndSaveWikipediaArticle(const std::string& tempJsonPath, std::string& 
           } else {
             escChar = ch;
           }
-          
+
           if (escChar != 0) {
             if (currentKey == "title") {
               currentValue += escChar;
@@ -394,7 +397,7 @@ static void wikiFetchTaskFunc(void* param) {
   // Activity cleans up tasks via cancelFetch and runBackgroundFetch
   vTaskDelete(nullptr);
 }
-} // namespace
+}  // namespace
 
 void WikipediaActivity::onEnter() {
   Activity::onEnter();
@@ -409,7 +412,7 @@ void WikipediaActivity::onEnter() {
   selectedIndex = 0;
   listScrollOffset = 0;
   wifiConnecting = false;
-  
+
   fetchTaskHandle = nullptr;
   pendingUpdateSearch = false;
   pendingUpdateArticle = false;
@@ -438,20 +441,16 @@ void WikipediaActivity::onExit() {
 void WikipediaActivity::loadOfflineArticlesList() {
   offlineArticles.clear();
   std::vector<String> files = Storage.listFiles("/apps/wikipedia");
-  for (const auto &file : files) {
+  for (const auto& file : files) {
     std::string filename = file.c_str();
-    if (filename.length() > 4 &&
-        filename.substr(filename.length() - 4) == ".txt") {
+    if (filename.length() > 4 && filename.substr(filename.length() - 4) == ".txt") {
       offlineArticles.push_back(filename.substr(0, filename.length() - 4));
-    } else if (filename.length() > 3 &&
-               filename.substr(filename.length() - 3) == ".md") {
+    } else if (filename.length() > 3 && filename.substr(filename.length() - 3) == ".md") {
       offlineArticles.push_back(filename.substr(0, filename.length() - 3));
     }
   }
   std::sort(offlineArticles.begin(), offlineArticles.end());
 }
-
-
 
 void WikipediaActivity::performBackgroundSearch() {
   if (fetchTaskHandle != nullptr) return;
@@ -528,15 +527,16 @@ void WikipediaActivity::runBackgroundFetch() {
 }
 
 bool WikipediaActivity::fetchSearchData() {
-  std::string url =
-      "https://en.wikipedia.org/w/api.php?action=opensearch&search=" +
-      urlEncode(searchQuery) + "&limit=10&namespace=0&format=json";
-  const char *tempPath = "/apps/wikipedia/search.tmp";
-  
+  std::string url = "https://en.wikipedia.org/w/api.php?action=opensearch&search=" + urlEncode(searchQuery) +
+                    "&limit=10&namespace=0&format=json";
+  const char* tempPath = "/apps/wikipedia/search.tmp";
+
   std::string errorDetail;
-  auto result = HttpDownloader::downloadToFile(url.c_str(), tempPath, nullptr, nullptr, "", "", nullptr, nullptr, &errorDetail);
+  auto result =
+      HttpDownloader::downloadToFile(url.c_str(), tempPath, nullptr, nullptr, "", "", nullptr, nullptr, &errorDetail);
   if (result != HttpDownloader::OK) {
-    errorMessage = "Search HTTP Error " + std::to_string(result) + ": " + (errorDetail.empty() ? "Unknown" : errorDetail);
+    errorMessage =
+        "Search HTTP Error " + std::to_string(result) + ": " + (errorDetail.empty() ? "Unknown" : errorDetail);
     Storage.remove(tempPath);
     return false;
   }
@@ -566,15 +566,18 @@ bool WikipediaActivity::fetchSearchData() {
 }
 
 bool WikipediaActivity::fetchArticleData() {
-  std::string url = "https://en.wikipedia.org/w/"
-                    "api.php?action=query&prop=extracts&explaintext=&titles=" +
-                    urlEncode(articleToFetch) + "&format=json&redirects=1";
-  const char *tempPath = "/apps/wikipedia/article.tmp";
-  
+  std::string url =
+      "https://en.wikipedia.org/w/"
+      "api.php?action=query&prop=extracts&explaintext=&titles=" +
+      urlEncode(articleToFetch) + "&format=json&redirects=1";
+  const char* tempPath = "/apps/wikipedia/article.tmp";
+
   std::string errorDetail;
-  auto result = HttpDownloader::downloadToFile(url.c_str(), tempPath, nullptr, nullptr, "", "", nullptr, nullptr, &errorDetail);
+  auto result =
+      HttpDownloader::downloadToFile(url.c_str(), tempPath, nullptr, nullptr, "", "", nullptr, nullptr, &errorDetail);
   if (result != HttpDownloader::OK) {
-    errorMessage = "Article HTTP Error " + std::to_string(result) + ": " + (errorDetail.empty() ? "Unknown" : errorDetail);
+    errorMessage =
+        "Article HTTP Error " + std::to_string(result) + ": " + (errorDetail.empty() ? "Unknown" : errorDetail);
     Storage.remove(tempPath);
     return false;
   }
@@ -595,7 +598,6 @@ bool WikipediaActivity::fetchArticleData() {
 }
 
 void WikipediaActivity::loop() {
-
   if (pendingSearch) {
     performBackgroundSearch();
     return;
@@ -695,30 +697,30 @@ void WikipediaActivity::loop() {
       requestUpdate();
     } else if (mappedInput.wasReleased(MappedInputManager::Button::Confirm)) {
       if (selectedIndex == 0) {
-        auto keyboard = std::make_unique<KeyboardEntryActivity>(
-            renderer, mappedInput, "Wikipedia Search", "", 40);
-        startActivityForResult(
-            std::move(keyboard), [this](const ActivityResult &result) {
-              if (!result.isCancelled) {
-                auto keyboardResult = std::get_if<KeyboardResult>(&result.data);
-                if (keyboardResult && !keyboardResult->text.empty()) {
-                  searchQuery = keyboardResult->text;
-                  state = WikiState::Loading;
-                  isSearchTask = true;
-                  requestUpdate();
-                  ensureWifiConnected([this]() {
+        auto keyboard = std::make_unique<KeyboardEntryActivity>(renderer, mappedInput, "Wikipedia Search", "", 40);
+        startActivityForResult(std::move(keyboard), [this](const ActivityResult& result) {
+          if (!result.isCancelled) {
+            auto keyboardResult = std::get_if<KeyboardResult>(&result.data);
+            if (keyboardResult && !keyboardResult->text.empty()) {
+              searchQuery = keyboardResult->text;
+              state = WikiState::Loading;
+              isSearchTask = true;
+              requestUpdate();
+              ensureWifiConnected(
+                  [this]() {
                     wifiWasUsed = true;
                     pendingSearch = true;
                     requestUpdate();
-                  }, [this]() {
+                  },
+                  [this]() {
                     state = WikiState::OfflineList;
                     requestUpdate();
                   });
-                }
-              } else {
-                requestUpdate();
-              }
-            });
+            }
+          } else {
+            requestUpdate();
+          }
+        });
       } else {
         std::string title = offlineArticles[selectedIndex - 1];
         std::string filepath = getArticleFilePath(title);
@@ -739,42 +741,44 @@ void WikipediaActivity::loop() {
         isSearchTask = true;
         errorMessage.clear();
         requestUpdate();
-        ensureWifiConnected([this]() {
-          wifiWasUsed = true;
-          pendingSearch = true;
-          requestUpdate();
-        }, [this]() {
-          state = WikiState::SearchResults;
-          requestUpdate();
-        });
+        ensureWifiConnected(
+            [this]() {
+              wifiWasUsed = true;
+              pendingSearch = true;
+              requestUpdate();
+            },
+            [this]() {
+              state = WikiState::SearchResults;
+              requestUpdate();
+            });
         return;
       }
     } else if (searchResults.empty()) {
       if (mappedInput.wasReleased(MappedInputManager::Button::Confirm)) {
-        auto keyboard = std::make_unique<KeyboardEntryActivity>(
-            renderer, mappedInput, "Wikipedia Search", "", 40);
-        startActivityForResult(
-            std::move(keyboard), [this](const ActivityResult &result) {
-              if (!result.isCancelled) {
-                auto keyboardResult = std::get_if<KeyboardResult>(&result.data);
-                if (keyboardResult && !keyboardResult->text.empty()) {
-                  searchQuery = keyboardResult->text;
-                  state = WikiState::Loading;
-                  isSearchTask = true;
-                  requestUpdate();
-                  ensureWifiConnected([this]() {
+        auto keyboard = std::make_unique<KeyboardEntryActivity>(renderer, mappedInput, "Wikipedia Search", "", 40);
+        startActivityForResult(std::move(keyboard), [this](const ActivityResult& result) {
+          if (!result.isCancelled) {
+            auto keyboardResult = std::get_if<KeyboardResult>(&result.data);
+            if (keyboardResult && !keyboardResult->text.empty()) {
+              searchQuery = keyboardResult->text;
+              state = WikiState::Loading;
+              isSearchTask = true;
+              requestUpdate();
+              ensureWifiConnected(
+                  [this]() {
                     wifiWasUsed = true;
                     pendingSearch = true;
                     requestUpdate();
-                  }, [this]() {
+                  },
+                  [this]() {
                     state = WikiState::SearchResults;
                     requestUpdate();
                   });
-                }
-              } else {
-                requestUpdate();
-              }
-            });
+            }
+          } else {
+            requestUpdate();
+          }
+        });
       }
     } else {
       int totalItems = static_cast<int>(searchResults.size());
@@ -815,17 +819,14 @@ void WikipediaActivity::loop() {
 
   if (state == WikiState::ArticleView) {
     const auto pageHeight = renderer.getScreenHeight();
-    const auto &metrics = UITheme::getInstance().getMetrics();
-    const int contentTop =
-        metrics.topPadding + metrics.headerHeight + metrics.verticalSpacing;
-    const int contentBottom =
-        pageHeight - metrics.buttonHintsHeight - metrics.verticalSpacing;
+    const auto& metrics = UITheme::getInstance().getMetrics();
+    const int contentTop = metrics.topPadding + metrics.headerHeight + metrics.verticalSpacing;
+    const int contentBottom = pageHeight - metrics.buttonHintsHeight - metrics.verticalSpacing;
     const int cardH = contentBottom - contentTop;
     const int lineHeight = renderer.getLineHeight(SMALL_FONT_ID);
     const int linesPerPage = (cardH - 60) / lineHeight;
 
-    int maxOffset =
-        std::max(0, static_cast<int>(articleLines.size()) - linesPerPage);
+    int maxOffset = std::max(0, static_cast<int>(articleLines.size()) - linesPerPage);
 
     if (mappedInput.wasReleased(MappedInputManager::Button::Up)) {
       articleScrollOffset = std::max(0, articleScrollOffset - 1);
@@ -837,29 +838,24 @@ void WikipediaActivity::loop() {
       articleScrollOffset = std::max(0, articleScrollOffset - linesPerPage);
       requestUpdate();
     } else if (mappedInput.wasReleased(MappedInputManager::Button::Right)) {
-      articleScrollOffset =
-          std::min(maxOffset, articleScrollOffset + linesPerPage);
+      articleScrollOffset = std::min(maxOffset, articleScrollOffset + linesPerPage);
       requestUpdate();
     }
     return;
   }
 }
 
-void WikipediaActivity::render(RenderLock &&) {
+void WikipediaActivity::render(RenderLock&&) {
   renderer.clearScreen();
 
   const auto pageWidth = renderer.getScreenWidth();
   const auto pageHeight = renderer.getScreenHeight();
-  const auto &metrics = UITheme::getInstance().getMetrics();
+  const auto& metrics = UITheme::getInstance().getMetrics();
 
-  GUI.drawHeader(renderer,
-                 Rect{0, metrics.topPadding, pageWidth, metrics.headerHeight},
-                 "Wikipedia");
+  GUI.drawHeader(renderer, Rect{0, metrics.topPadding, pageWidth, metrics.headerHeight}, "Wikipedia");
 
-  const int contentTop =
-      metrics.topPadding + metrics.headerHeight + metrics.verticalSpacing;
-  const int contentBottom =
-      pageHeight - metrics.buttonHintsHeight - metrics.verticalSpacing;
+  const int contentTop = metrics.topPadding + metrics.headerHeight + metrics.verticalSpacing;
+  const int contentBottom = pageHeight - metrics.buttonHintsHeight - metrics.verticalSpacing;
   const int contentHeight = contentBottom - contentTop;
 
   if (state == WikiState::Loading) {
@@ -869,68 +865,51 @@ void WikipediaActivity::render(RenderLock &&) {
     } else {
       renderer.drawCenteredText(UI_12_FONT_ID, textY, "Downloading...");
     }
-    const auto labels =
-        mappedInput.mapLabels(tr(STR_BACK), nullptr, nullptr, nullptr);
-    GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3,
-                        labels.btn4);
+    const auto labels = mappedInput.mapLabels(tr(STR_BACK), nullptr, nullptr, nullptr);
+    GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3, labels.btn4);
   } else if (state == WikiState::OfflineList) {
     GUI.drawButtonMenu(
-        renderer, Rect{0, contentTop, pageWidth, contentHeight},
-        offlineArticles.size() + 1, selectedIndex,
+        renderer, Rect{0, contentTop, pageWidth, contentHeight}, offlineArticles.size() + 1, selectedIndex,
         [this](int index) {
-          if (index == 0)
-            return std::string("[+ Search Wikipedia]");
+          if (index == 0) return std::string("[+ Search Wikipedia]");
           return offlineArticles[index - 1];
         },
         [this](int index) {
-          if (index == 0)
-            return UIIcon::File;
+          if (index == 0) return UIIcon::File;
           return UIIcon::Book;
         },
         9);
 
-    const auto labels = mappedInput.mapLabels(tr(STR_BACK), tr(STR_SELECT),
-                                              tr(STR_DIR_UP), tr(STR_DIR_DOWN));
-    GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3,
-                        labels.btn4);
+    const auto labels = mappedInput.mapLabels(tr(STR_BACK), tr(STR_SELECT), tr(STR_DIR_UP), tr(STR_DIR_DOWN));
+    GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3, labels.btn4);
   } else if (state == WikiState::SearchResults) {
     if (!errorMessage.empty()) {
       int textY = contentTop + contentHeight / 2 - 40;
-      renderer.drawCenteredText(UI_12_FONT_ID, textY, errorMessage.c_str(),
-                                true, EpdFontFamily::BOLD);
-      renderer.drawCenteredText(SMALL_FONT_ID, textY + 30,
-                                "Configure your network or retry search.");
-      const auto labels =
-          mappedInput.mapLabels(tr(STR_BACK), nullptr, nullptr, "Retry");
-      GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3,
-                          labels.btn4);
+      renderer.drawCenteredText(UI_12_FONT_ID, textY, errorMessage.c_str(), true, EpdFontFamily::BOLD);
+      renderer.drawCenteredText(SMALL_FONT_ID, textY + 30, "Configure your network or retry search.");
+      const auto labels = mappedInput.mapLabels(tr(STR_BACK), nullptr, nullptr, "Retry");
+      GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3, labels.btn4);
     } else if (searchResults.empty()) {
       int textY = contentTop + contentHeight / 2 - 20;
       renderer.drawCenteredText(UI_12_FONT_ID, textY, "No results found.");
-      const auto labels =
-          mappedInput.mapLabels(tr(STR_BACK), "Search", nullptr, nullptr);
-      GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3,
-                          labels.btn4);
+      const auto labels = mappedInput.mapLabels(tr(STR_BACK), "Search", nullptr, nullptr);
+      GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3, labels.btn4);
     } else {
       GUI.drawButtonMenu(
-          renderer, Rect{0, contentTop, pageWidth, contentHeight},
-          searchResults.size(), selectedIndex,
+          renderer, Rect{0, contentTop, pageWidth, contentHeight}, searchResults.size(), selectedIndex,
           [this](int index) { return searchResults[index]; },
           [this](int index) {
             std::string title = searchResults[index];
-            std::string filepath =
-                "/apps/wikipedia/" + sanitizeFilename(title) + ".txt";
+            std::string filepath = "/apps/wikipedia/" + sanitizeFilename(title) + ".txt";
             if (Storage.exists(filepath.c_str())) {
-              return UIIcon::Book; // Cached offline
+              return UIIcon::Book;  // Cached offline
             }
-            return UIIcon::Book; // Remote online
+            return UIIcon::Book;  // Remote online
           },
           9);
 
-      const auto labels = mappedInput.mapLabels(
-          tr(STR_BACK), tr(STR_SELECT), tr(STR_DIR_UP), tr(STR_DIR_DOWN));
-      GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3,
-                          labels.btn4);
+      const auto labels = mappedInput.mapLabels(tr(STR_BACK), tr(STR_SELECT), tr(STR_DIR_UP), tr(STR_DIR_DOWN));
+      GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3, labels.btn4);
     }
   } else if (state == WikiState::ArticleView) {
     const int cardX = metrics.contentSidePadding;
@@ -941,43 +920,34 @@ void WikipediaActivity::render(RenderLock &&) {
     renderer.drawRoundedRect(cardX, cardY, cardW, cardH, 1, 10, true);
 
     // Header Title Card
-    renderer.drawText(SMALL_FONT_ID, cardX + 20, cardY + 20,
-                      currentArticleTitle.c_str(), true, EpdFontFamily::BOLD);
-    renderer.drawLine(cardX + 20, cardY + 40, cardX + cardW - 20, cardY + 40, 1,
-                      true);
+    renderer.drawText(SMALL_FONT_ID, cardX + 20, cardY + 20, currentArticleTitle.c_str(), true, EpdFontFamily::BOLD);
+    renderer.drawLine(cardX + 20, cardY + 40, cardX + cardW - 20, cardY + 40, 1, true);
 
     // Compute lines
     const int lineHeight = renderer.getLineHeight(SMALL_FONT_ID);
     const int linesPerPage = (cardH - 60) / lineHeight;
 
     articleLines =
-        renderer.wrappedText(SMALL_FONT_ID, currentArticleText.c_str(),
-                             cardW - 40, 2000, EpdFontFamily::REGULAR);
+        renderer.wrappedText(SMALL_FONT_ID, currentArticleText.c_str(), cardW - 40, 2000, EpdFontFamily::REGULAR);
 
     for (int i = 0; i < linesPerPage; i++) {
       int idx = articleScrollOffset + i;
-      if (idx >= static_cast<int>(articleLines.size()))
-        break;
-      renderer.drawText(SMALL_FONT_ID, cardX + 20, cardY + 50 + i * lineHeight,
-                        articleLines[idx].c_str(), true,
+      if (idx >= static_cast<int>(articleLines.size())) break;
+      renderer.drawText(SMALL_FONT_ID, cardX + 20, cardY + 50 + i * lineHeight, articleLines[idx].c_str(), true,
                         EpdFontFamily::REGULAR);
     }
 
     // Paging Indicator
     if (!articleLines.empty()) {
-      int currentLineEnd = std::min(static_cast<int>(articleLines.size()),
-                                    articleScrollOffset + linesPerPage);
-      std::string pageStr = std::to_string(currentLineEnd) + " / " +
-                            std::to_string(articleLines.size()) + " lines";
+      int currentLineEnd = std::min(static_cast<int>(articleLines.size()), articleScrollOffset + linesPerPage);
+      std::string pageStr = std::to_string(currentLineEnd) + " / " + std::to_string(articleLines.size()) + " lines";
       int pageW = renderer.getTextWidth(SMALL_FONT_ID, pageStr.c_str());
-      renderer.drawText(SMALL_FONT_ID, cardX + cardW - 20 - pageW, cardY + 20,
-                        pageStr.c_str(), true, EpdFontFamily::REGULAR);
+      renderer.drawText(SMALL_FONT_ID, cardX + cardW - 20 - pageW, cardY + 20, pageStr.c_str(), true,
+                        EpdFontFamily::REGULAR);
     }
 
-    const auto labels = mappedInput.mapLabels(tr(STR_BACK), nullptr,
-                                              tr(STR_DIR_UP), tr(STR_DIR_DOWN));
-    GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3,
-                        labels.btn4);
+    const auto labels = mappedInput.mapLabels(tr(STR_BACK), nullptr, tr(STR_DIR_UP), tr(STR_DIR_DOWN));
+    GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3, labels.btn4);
   }
 
   renderer.displayBuffer();

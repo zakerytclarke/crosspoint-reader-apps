@@ -3,10 +3,10 @@
 #include <GfxRenderer.h>
 #include <HalClock.h>
 #include <HalPowerManager.h>
-#include <time.h>
 #include <HalStorage.h>
 #include <Logging.h>
 #include <WiFi.h>
+#include <time.h>
 
 #include <algorithm>
 #include <cstdint>
@@ -294,6 +294,11 @@ void BaseTheme::drawSideButtonHints(const GfxRenderer& renderer, const char* top
   }
 }
 
+int BaseTheme::getListPageItems(int contentHeight, bool hasSubtitle) const {
+  int rowHeight = (hasSubtitle) ? BaseMetrics::values.listWithSubtitleRowHeight : BaseMetrics::values.listRowHeight;
+  return contentHeight / rowHeight;
+}
+
 void BaseTheme::drawList(const GfxRenderer& renderer, Rect rect, int itemCount, int selectedIndex,
                          const std::function<std::string(int index)>& rowTitle,
                          const std::function<std::string(int index)>& rowSubtitle,
@@ -409,7 +414,8 @@ void BaseTheme::drawHeader(const GfxRenderer& renderer, Rect rect, const char* t
     auto truncatedTitle = renderer.truncatedText(UI_12_FONT_ID, title,
                                                  rect.width - padding * 2 - BaseMetrics::values.contentSidePadding * 2,
                                                  EpdFontFamily::BOLD);
-    renderer.drawText(UI_12_FONT_ID, rect.x + BaseMetrics::values.contentSidePadding, rect.y + 5, truncatedTitle.c_str(), true, EpdFontFamily::BOLD);
+    renderer.drawText(UI_12_FONT_ID, rect.x + BaseMetrics::values.contentSidePadding, rect.y + 5,
+                      truncatedTitle.c_str(), true, EpdFontFamily::BOLD);
   }
 
   if (subtitle) {
@@ -705,8 +711,7 @@ void BaseTheme::drawRecentBookCover(GfxRenderer& renderer, Rect rect, const std:
 
 void BaseTheme::drawButtonMenu(GfxRenderer& renderer, Rect rect, int buttonCount, int selectedIndex,
                                const std::function<std::string(int index)>& buttonLabel,
-                               const std::function<UIIcon(int index)>& rowIcon,
-                               int maxPageItems) const {
+                               const std::function<UIIcon(int index)>& rowIcon, int maxPageItems) const {
   const int rowHeight = BaseMetrics::values.menuRowHeight + BaseMetrics::values.menuSpacing;
   const int pageItems = std::min(maxPageItems, std::max(1, rect.height / rowHeight));
   const int safeSelectedIndex = std::max(0, selectedIndex);
@@ -731,21 +736,23 @@ void BaseTheme::drawButtonMenu(GfxRenderer& renderer, Rect rect, int buttonCount
                       scrollBarHeight, true);
   }
 
-  int contentWidth = rect.width - (buttonCount > pageItems ? (BaseMetrics::values.scrollBarWidth + BaseMetrics::values.scrollBarRightOffset + 4) : 0);
+  int contentWidth =
+      rect.width - (buttonCount > pageItems
+                        ? (BaseMetrics::values.scrollBarWidth + BaseMetrics::values.scrollBarRightOffset + 4)
+                        : 0);
 
   for (int i = pageStartIndex; i < buttonCount && i < pageStartIndex + pageItems; ++i) {
-    const int tileY = BaseMetrics::values.verticalSpacing + rect.y +
-                      static_cast<int>(i - pageStartIndex) * rowHeight;
+    const int tileY = BaseMetrics::values.verticalSpacing + rect.y + static_cast<int>(i - pageStartIndex) * rowHeight;
 
     const bool selected = selectedIndex == i;
     const int tileWidth = contentWidth - BaseMetrics::values.contentSidePadding * 2;
 
     if (selected) {
-      renderer.fillRect(rect.x + BaseMetrics::values.contentSidePadding, tileY,
-                        tileWidth, BaseMetrics::values.menuRowHeight);
+      renderer.fillRect(rect.x + BaseMetrics::values.contentSidePadding, tileY, tileWidth,
+                        BaseMetrics::values.menuRowHeight);
     } else {
-      renderer.drawRect(rect.x + BaseMetrics::values.contentSidePadding, tileY,
-                        tileWidth, BaseMetrics::values.menuRowHeight);
+      renderer.drawRect(rect.x + BaseMetrics::values.contentSidePadding, tileY, tileWidth,
+                        BaseMetrics::values.menuRowHeight);
     }
 
     std::string labelStr = buttonLabel(i);
@@ -854,7 +861,7 @@ void BaseTheme::drawStatusBar(GfxRenderer& renderer, const float bookProgress, c
     const int barMarginRight = fillMargin ? 0 : orientedMarginRight;
     const int progressBarMaxWidth = renderer.getScreenWidth() - barMarginLeft - barMarginRight;
     const int progressBarY = renderer.getScreenHeight() - orientedMarginBottom -
-                             ((SETTINGS.statusBarProgressBarThickness + 1) * 2) - paddingBottom;
+                             ((SETTINGS.statusBarProgressBarThickness + 1) * 2) - paddingBottom + (fillMargin ? 1 : 0);
     size_t progress;
     if (SETTINGS.statusBarProgressBar == CrossPointSettings::STATUS_BAR_PROGRESS_BAR::BOOK_PROGRESS) {
       progress = static_cast<size_t>(bookProgress);

@@ -1,11 +1,12 @@
 #pragma once
 
-#include "activities/Activity.h"
 #include <string>
+
+#include "activities/Activity.h"
 
 class CalculatorActivity final : public Activity {
  private:
-  int selRow = 1; // start on digit '7'
+  int selRow = 1;  // start on digit '7'
   int selCol = 0;
   std::string inputExpr;
   std::string resultText;

@@ -5,19 +5,20 @@
 #include <HalStorage.h>
 #include <I18n.h>
 #include <WiFi.h>
+
 #include <cstdlib>
 
 #include "MappedInputManager.h"
-#include "activities/ActivityManager.h"
-#include "activities/util/WifiConnectHelper.h"
-#include "activities/network/WifiSelectionActivity.h"
 #include "SilentRestart.h"
+#include "activities/ActivityManager.h"
+#include "activities/network/WifiSelectionActivity.h"
+#include "activities/util/WifiConnectHelper.h"
 #include "components/UITheme.h"
 #include "fontIds.h"
 #include "network/HttpDownloader.h"
 namespace {
 struct City {
-  const char *name;
+  const char* name;
   double lat;
   double lon;
 };
@@ -305,45 +306,45 @@ const City CITIES[] = {
 };
 const int CITY_COUNT = sizeof(CITIES) / sizeof(CITIES[0]);
 
-const char *getWeatherDesc(int code) {
+const char* getWeatherDesc(int code) {
   switch (code) {
-  case 0:
-    return "Clear sky";
-  case 1:
-    return "Mainly clear";
-  case 2:
-    return "Partly cloudy";
-  case 3:
-    return "Overcast";
-  case 45:
-  case 48:
-    return "Foggy";
-  case 51:
-  case 53:
-  case 55:
-    return "Drizzle";
-  case 61:
-  case 63:
-  case 65:
-    return "Rainy";
-  case 71:
-  case 73:
-  case 75:
-    return "Snowy";
-  case 80:
-  case 81:
-  case 82:
-    return "Rain showers";
-  case 95:
-  case 96:
-  case 99:
-    return "Thunderstorm";
-  default:
-    return "Unknown";
+    case 0:
+      return "Clear sky";
+    case 1:
+      return "Mainly clear";
+    case 2:
+      return "Partly cloudy";
+    case 3:
+      return "Overcast";
+    case 45:
+    case 48:
+      return "Foggy";
+    case 51:
+    case 53:
+    case 55:
+      return "Drizzle";
+    case 61:
+    case 63:
+    case 65:
+      return "Rainy";
+    case 71:
+    case 73:
+    case 75:
+      return "Snowy";
+    case 80:
+    case 81:
+    case 82:
+      return "Rain showers";
+    case 95:
+    case 96:
+    case 99:
+      return "Thunderstorm";
+    default:
+      return "Unknown";
   }
 }
 
-void saveConfig(int cityIndex, const std::string &cityName) {
+void saveConfig(int cityIndex, const std::string& cityName) {
   Storage.ensureDirectoryExists("/apps");
   Storage.ensureDirectoryExists("/apps/weather");
   JsonDocument doc;
@@ -354,20 +355,18 @@ void saveConfig(int cityIndex, const std::string &cityName) {
   Storage.writeFile("/apps/weather/config.json", output);
 }
 
-bool loadConfig(int &cityIndex, std::string &cityName) {
+bool loadConfig(int& cityIndex, std::string& cityName) {
   String input = Storage.readFile("/apps/weather/config.json");
-  if (input.length() == 0)
-    return false;
+  if (input.length() == 0) return false;
   JsonDocument doc;
   DeserializationError err = deserializeJson(doc, input);
-  if (err)
-    return false;
+  if (err) return false;
   cityIndex = doc["city_index"] | 0;
   cityName = doc["city_name"] | "";
   return true;
 }
 
-std::string getSafeCityFilename(const std::string &name) {
+std::string getSafeCityFilename(const std::string& name) {
   std::string safe = "";
   for (char c : name) {
     if (std::isalnum(c)) {
@@ -379,8 +378,8 @@ std::string getSafeCityFilename(const std::string &name) {
   return safe;
 }
 
-void saveCache(const std::string &cityName, double temp, double windspeed,
-               int weathercode, const std::string &timeStr) {
+void saveCache(const std::string& cityName, double temp, double windspeed, int weathercode,
+               const std::string& timeStr) {
   Storage.ensureDirectoryExists("/apps");
   Storage.ensureDirectoryExists("/apps/weather");
   JsonDocument doc;
@@ -390,22 +389,17 @@ void saveCache(const std::string &cityName, double temp, double windspeed,
   doc["time"] = timeStr;
   String output;
   serializeJson(doc, output);
-  std::string filepath =
-      "/apps/weather/" + getSafeCityFilename(cityName) + ".txt";
+  std::string filepath = "/apps/weather/" + getSafeCityFilename(cityName) + ".txt";
   Storage.writeFile(filepath.c_str(), output);
 }
 
-bool loadCache(const std::string &cityName, double &temp, double &windspeed,
-               int &weathercode, std::string &timeStr) {
-  std::string filepath =
-      "/apps/weather/" + getSafeCityFilename(cityName) + ".txt";
+bool loadCache(const std::string& cityName, double& temp, double& windspeed, int& weathercode, std::string& timeStr) {
+  std::string filepath = "/apps/weather/" + getSafeCityFilename(cityName) + ".txt";
   String input = Storage.readFile(filepath.c_str());
-  if (input.length() == 0)
-    return false;
+  if (input.length() == 0) return false;
   JsonDocument doc;
   DeserializationError err = deserializeJson(doc, input);
-  if (err)
-    return false;
+  if (err) return false;
   temp = doc["temp"] | 0.0;
   windspeed = doc["windspeed"] | 0.0;
   weathercode = doc["weathercode"] | 0;
@@ -413,8 +407,7 @@ bool loadCache(const std::string &cityName, double &temp, double &windspeed,
   return true;
 }
 
-bool fetchWeather(double lat, double lon, double &temp, double &windspeed,
-                  int &weathercode, std::string &timeStr) {
+bool fetchWeather(double lat, double lon, double& temp, double& windspeed, int& weathercode, std::string& timeStr) {
   char url[256];
   snprintf(url, sizeof(url),
            "http://api.open-meteo.com/v1/"
@@ -426,11 +419,9 @@ bool fetchWeather(double lat, double lon, double &temp, double &windspeed,
   }
   JsonDocument doc;
   DeserializationError err = deserializeJson(doc, response);
-  if (err)
-    return false;
+  if (err) return false;
 
-  if (doc["current_weather"].isNull())
-    return false;
+  if (doc["current_weather"].isNull()) return false;
   auto cw = doc["current_weather"];
   temp = cw["temperature"] | 0.0;
   windspeed = cw["windspeed"] | 0.0;
@@ -439,137 +430,136 @@ bool fetchWeather(double lat, double lon, double &temp, double &windspeed,
   return true;
 }
 
-void drawWeatherIcon(const GfxRenderer &r, int cx, int cy, int code) {
+void drawWeatherIcon(const GfxRenderer& r, int cx, int cy, int code) {
   switch (code) {
-  case 0: // Clear sky
-  case 1: // Mainly clear
-    // Draw Sun
-    r.fillRoundedRect(cx - 20, cy - 20, 40, 40, 20, Color::Black);
-    r.fillRoundedRect(cx - 15, cy - 15, 30, 30, 15, Color::White);
-    r.fillRoundedRect(cx - 10, cy - 10, 20, 20, 10, Color::Black);
+    case 0:  // Clear sky
+    case 1:  // Mainly clear
+      // Draw Sun
+      r.fillRoundedRect(cx - 20, cy - 20, 40, 40, 20, Color::Black);
+      r.fillRoundedRect(cx - 15, cy - 15, 30, 30, 15, Color::White);
+      r.fillRoundedRect(cx - 10, cy - 10, 20, 20, 10, Color::Black);
 
-    // Ray lines
-    r.drawLine(cx, cy - 30, cx, cy - 24, 2, true);
-    r.drawLine(cx, cy + 24, cx, cy + 30, 2, true);
-    r.drawLine(cx - 30, cy, cx - 24, cy, 2, true);
-    r.drawLine(cx + 24, cy, cx + 30, cy, 2, true);
-    r.drawLine(cx - 21, cy - 21, cx - 17, cy - 17, 2, true);
-    r.drawLine(cx + 17, cy - 17, cx + 21, cy - 21, 2, true);
-    r.drawLine(cx - 21, cy + 21, cx - 17, cy + 17, 2, true);
-    r.drawLine(cx + 17, cy + 17, cx + 21, cy + 21, 2, true);
-    break;
+      // Ray lines
+      r.drawLine(cx, cy - 30, cx, cy - 24, 2, true);
+      r.drawLine(cx, cy + 24, cx, cy + 30, 2, true);
+      r.drawLine(cx - 30, cy, cx - 24, cy, 2, true);
+      r.drawLine(cx + 24, cy, cx + 30, cy, 2, true);
+      r.drawLine(cx - 21, cy - 21, cx - 17, cy - 17, 2, true);
+      r.drawLine(cx + 17, cy - 17, cx + 21, cy - 21, 2, true);
+      r.drawLine(cx - 21, cy + 21, cx - 17, cy + 17, 2, true);
+      r.drawLine(cx + 17, cy + 17, cx + 21, cy + 21, 2, true);
+      break;
 
-  case 2: // Partly cloudy
-    // Draw Sun behind cloud
-    r.fillRoundedRect(cx + 12 - 15, cy - 12 - 15, 30, 30, 15, Color::Black);
-    r.fillRoundedRect(cx + 12 - 11, cy - 12 - 11, 22, 22, 11, Color::White);
-    r.fillRoundedRect(cx + 12 - 7, cy - 12 - 7, 14, 14, 7, Color::Black);
+    case 2:  // Partly cloudy
+      // Draw Sun behind cloud
+      r.fillRoundedRect(cx + 12 - 15, cy - 12 - 15, 30, 30, 15, Color::Black);
+      r.fillRoundedRect(cx + 12 - 11, cy - 12 - 11, 22, 22, 11, Color::White);
+      r.fillRoundedRect(cx + 12 - 7, cy - 12 - 7, 14, 14, 7, Color::Black);
 
-    // Sun rays
-    r.drawLine(cx + 12, cy - 31, cx + 12, cy - 27, 2, true);
-    r.drawLine(cx + 31, cy - 12, cx + 35, cy - 12, 2, true);
-    r.drawLine(cx + 25, cy - 25, cx + 28, cy - 28, 2, true);
+      // Sun rays
+      r.drawLine(cx + 12, cy - 31, cx + 12, cy - 27, 2, true);
+      r.drawLine(cx + 31, cy - 12, cx + 35, cy - 12, 2, true);
+      r.drawLine(cx + 25, cy - 25, cx + 28, cy - 28, 2, true);
 
-    // White mask to separate cloud and sun
-    r.fillRoundedRect(cx - 32, cy - 2, 64, 32, 16, Color::White);
+      // White mask to separate cloud and sun
+      r.fillRoundedRect(cx - 32, cy - 2, 64, 32, 16, Color::White);
 
-    // Draw Cloud in front
-    r.fillRect(cx - 25, cy + 5, 50, 15, true);
-    r.fillRoundedRect(cx - 25, cy - 8, 24, 24, 12, Color::Black);
-    r.fillRoundedRect(cx - 12, cy - 16, 30, 30, 15, Color::Black);
-    r.fillRoundedRect(cx + 10, cy - 4, 18, 18, 9, Color::Black);
-    break;
+      // Draw Cloud in front
+      r.fillRect(cx - 25, cy + 5, 50, 15, true);
+      r.fillRoundedRect(cx - 25, cy - 8, 24, 24, 12, Color::Black);
+      r.fillRoundedRect(cx - 12, cy - 16, 30, 30, 15, Color::Black);
+      r.fillRoundedRect(cx + 10, cy - 4, 18, 18, 9, Color::Black);
+      break;
 
-  case 3:  // Overcast
-  case 45: // Foggy
-  case 48:
-    // Draw Cloud
-    r.fillRect(cx - 30, cy, 60, 20, true);
-    r.fillRoundedRect(cx - 30, cy - 12, 30, 30, 15, Color::Black);
-    r.fillRoundedRect(cx - 15, cy - 22, 38, 38, 19, Color::Black);
-    r.fillRoundedRect(cx + 10, cy - 6, 24, 24, 12, Color::Black);
+    case 3:   // Overcast
+    case 45:  // Foggy
+    case 48:
+      // Draw Cloud
+      r.fillRect(cx - 30, cy, 60, 20, true);
+      r.fillRoundedRect(cx - 30, cy - 12, 30, 30, 15, Color::Black);
+      r.fillRoundedRect(cx - 15, cy - 22, 38, 38, 19, Color::Black);
+      r.fillRoundedRect(cx + 10, cy - 6, 24, 24, 12, Color::Black);
 
-    if (code == 45 || code == 48) {
-      // Fog lines below
-      r.drawLine(cx - 35, cy + 24, cx + 35, cy + 24, 2, true);
-      r.drawLine(cx - 25, cy + 30, cx + 25, cy + 30, 2, true);
-    }
-    break;
+      if (code == 45 || code == 48) {
+        // Fog lines below
+        r.drawLine(cx - 35, cy + 24, cx + 35, cy + 24, 2, true);
+        r.drawLine(cx - 25, cy + 30, cx + 25, cy + 30, 2, true);
+      }
+      break;
 
-  case 51: // Drizzle
-  case 53: // Drizzle
-  case 55: // Drizzle
-  case 61: // Rainy
-  case 63: // Rainy
-  case 65: // Rainy
-  case 80: // Rain showers
-  case 81:
-  case 82:
-    // Draw Cloud
-    r.fillRect(cx - 28, cy - 5, 56, 20, true);
-    r.fillRoundedRect(cx - 28, cy - 15, 28, 28, 14, Color::Black);
-    r.fillRoundedRect(cx - 14, cy - 24, 36, 36, 18, Color::Black);
-    r.fillRoundedRect(cx + 10, cy - 9, 22, 22, 11, Color::Black);
+    case 51:  // Drizzle
+    case 53:  // Drizzle
+    case 55:  // Drizzle
+    case 61:  // Rainy
+    case 63:  // Rainy
+    case 65:  // Rainy
+    case 80:  // Rain showers
+    case 81:
+    case 82:
+      // Draw Cloud
+      r.fillRect(cx - 28, cy - 5, 56, 20, true);
+      r.fillRoundedRect(cx - 28, cy - 15, 28, 28, 14, Color::Black);
+      r.fillRoundedRect(cx - 14, cy - 24, 36, 36, 18, Color::Black);
+      r.fillRoundedRect(cx + 10, cy - 9, 22, 22, 11, Color::Black);
 
-    // Slanted raindrops
-    r.drawLine(cx - 18, cy + 18, cx - 22, cy + 26, 2, true);
-    r.drawLine(cx - 6, cy + 18, cx - 10, cy + 26, 2, true);
-    r.drawLine(cx + 8, cy + 18, cx + 4, cy + 26, 2, true);
-    r.drawLine(cx + 20, cy + 18, cx + 16, cy + 26, 2, true);
-    break;
+      // Slanted raindrops
+      r.drawLine(cx - 18, cy + 18, cx - 22, cy + 26, 2, true);
+      r.drawLine(cx - 6, cy + 18, cx - 10, cy + 26, 2, true);
+      r.drawLine(cx + 8, cy + 18, cx + 4, cy + 26, 2, true);
+      r.drawLine(cx + 20, cy + 18, cx + 16, cy + 26, 2, true);
+      break;
 
-  case 71: // Snowy
-  case 73:
-  case 75:
-    // Draw Cloud
-    r.fillRect(cx - 28, cy - 5, 56, 20, true);
-    r.fillRoundedRect(cx - 28, cy - 15, 28, 28, 14, Color::Black);
-    r.fillRoundedRect(cx - 14, cy - 24, 36, 36, 18, Color::Black);
-    r.fillRoundedRect(cx + 10, cy - 9, 22, 22, 11, Color::Black);
+    case 71:  // Snowy
+    case 73:
+    case 75:
+      // Draw Cloud
+      r.fillRect(cx - 28, cy - 5, 56, 20, true);
+      r.fillRoundedRect(cx - 28, cy - 15, 28, 28, 14, Color::Black);
+      r.fillRoundedRect(cx - 14, cy - 24, 36, 36, 18, Color::Black);
+      r.fillRoundedRect(cx + 10, cy - 9, 22, 22, 11, Color::Black);
 
-    // Snowflakes (small cross/asterisks)
-    r.drawLine(cx - 17, cy + 21, cx - 11, cy + 21, 2, true);
-    r.drawLine(cx - 14, cy + 18, cx - 14, cy + 24, 2, true);
+      // Snowflakes (small cross/asterisks)
+      r.drawLine(cx - 17, cy + 21, cx - 11, cy + 21, 2, true);
+      r.drawLine(cx - 14, cy + 18, cx - 14, cy + 24, 2, true);
 
-    r.drawLine(cx - 3, cy + 24, cx + 3, cy + 24, 2, true);
-    r.drawLine(cx, cy + 21, cx, cy + 27, 2, true);
+      r.drawLine(cx - 3, cy + 24, cx + 3, cy + 24, 2, true);
+      r.drawLine(cx, cy + 21, cx, cy + 27, 2, true);
 
-    r.drawLine(cx + 11, cy + 21, cx + 17, cy + 21, 2, true);
-    r.drawLine(cx + 14, cy + 18, cx + 14, cy + 24, 2, true);
-    break;
+      r.drawLine(cx + 11, cy + 21, cx + 17, cy + 21, 2, true);
+      r.drawLine(cx + 14, cy + 18, cx + 14, cy + 24, 2, true);
+      break;
 
-  case 95: // Thunderstorm
-  case 96:
-  case 99:
-    // Draw Cloud
-    r.fillRect(cx - 28, cy - 5, 56, 20, true);
-    r.fillRoundedRect(cx - 28, cy - 15, 28, 28, 14, Color::Black);
-    r.fillRoundedRect(cx - 14, cy - 24, 36, 36, 18, Color::Black);
-    r.fillRoundedRect(cx + 10, cy - 9, 22, 22, 11, Color::Black);
+    case 95:  // Thunderstorm
+    case 96:
+    case 99:
+      // Draw Cloud
+      r.fillRect(cx - 28, cy - 5, 56, 20, true);
+      r.fillRoundedRect(cx - 28, cy - 15, 28, 28, 14, Color::Black);
+      r.fillRoundedRect(cx - 14, cy - 24, 36, 36, 18, Color::Black);
+      r.fillRoundedRect(cx + 10, cy - 9, 22, 22, 11, Color::Black);
 
-    // Lightning bolt
-    r.drawLine(cx - 3, cy + 16, cx + 5, cy + 23, 2, true);
-    r.drawLine(cx + 5, cy + 23, cx - 5, cy + 23, 2, true);
-    r.drawLine(cx - 5, cy + 23, cx + 1, cy + 31, 2, true);
-    break;
+      // Lightning bolt
+      r.drawLine(cx - 3, cy + 16, cx + 5, cy + 23, 2, true);
+      r.drawLine(cx + 5, cy + 23, cx - 5, cy + 23, 2, true);
+      r.drawLine(cx - 5, cy + 23, cx + 1, cy + 31, 2, true);
+      break;
 
-  default:
-    // Unknown: Draw a question mark outline
-    r.drawRoundedRect(cx - 20, cy - 20, 40, 40, 2, 20, true);
-    r.drawCenteredText(NOTOSANS_18_FONT_ID, cy - 9, "?", true,
-                       EpdFontFamily::BOLD);
-    break;
+    default:
+      // Unknown: Draw a question mark outline
+      r.drawRoundedRect(cx - 20, cy - 20, 40, 40, 2, 20, true);
+      r.drawCenteredText(NOTOSANS_18_FONT_ID, cy - 9, "?", true, EpdFontFamily::BOLD);
+      break;
   }
 }
-} // namespace
+}  // namespace
 
 namespace {
-static void weatherFetchTaskFunc(void *param) {
-  WeatherActivity *activity = static_cast<WeatherActivity *>(param);
+static void weatherFetchTaskFunc(void* param) {
+  WeatherActivity* activity = static_cast<WeatherActivity*>(param);
   activity->runBackgroundFetch();
   vTaskDelete(nullptr);
 }
-} // namespace
+}  // namespace
 
 void WeatherActivity::runBackgroundFetch() {
   if (WiFi.status() == WL_CONNECTED) {
@@ -582,8 +572,7 @@ void WeatherActivity::runBackgroundFetch() {
     int fetchRetries = 3;
     backgroundFetchSuccess = false;
     while (fetchRetries > 0) {
-      if (fetchWeather(lat, lon, fetchedTemp, fetchedWindspeed,
-                       fetchedWeatherCode, fetchedTimeStr)) {
+      if (fetchWeather(lat, lon, fetchedTemp, fetchedWindspeed, fetchedWeatherCode, fetchedTimeStr)) {
         backgroundFetchSuccess = true;
         break;
       }
@@ -619,12 +608,11 @@ void WeatherActivity::onEnter() {
       errorMessage = "No cached weather data. Fetching...";
       state = WeatherState::Loading;
       requestUpdate();
-      ensureWifiConnected([this]() {
-        performFetch();
-      }, [this]() {
-        state = WeatherState::SelectCity;
-        requestUpdate();
-      });
+      ensureWifiConnected([this]() { performFetch(); },
+                          [this]() {
+                            state = WeatherState::SelectCity;
+                            requestUpdate();
+                          });
     }
   } else {
     state = WeatherState::SelectCity;
@@ -632,8 +620,6 @@ void WeatherActivity::onEnter() {
   }
   requestUpdate();
 }
-
-
 
 void WeatherActivity::onExit() {
   Activity::onExit();
@@ -707,24 +693,22 @@ void WeatherActivity::loop() {
         errorMessage = "No cached weather data. Fetching...";
         state = WeatherState::Loading;
         requestUpdate();
-        ensureWifiConnected([this]() {
-          performFetch();
-        }, [this]() {
-          state = WeatherState::SelectCity;
-          requestUpdate();
-        });
+        ensureWifiConnected([this]() { performFetch(); },
+                            [this]() {
+                              state = WeatherState::SelectCity;
+                              requestUpdate();
+                            });
       }
     }
   } else if (state == WeatherState::ShowWeather) {
     if (mappedInput.wasReleased(MappedInputManager::Button::Confirm)) {
       state = WeatherState::Loading;
       requestUpdate();
-      ensureWifiConnected([this]() {
-        performFetch();
-      }, [this]() {
-        state = WeatherState::ShowWeather;
-        requestUpdate();
-      });
+      ensureWifiConnected([this]() { performFetch(); },
+                          [this]() {
+                            state = WeatherState::ShowWeather;
+                            requestUpdate();
+                          });
     } else if (mappedInput.wasReleased(MappedInputManager::Button::Left)) {
       state = WeatherState::SelectCity;
       requestUpdate();
@@ -735,67 +719,46 @@ void WeatherActivity::loop() {
 void WeatherActivity::performFetch() {
   cancelFetchTask();
   backgroundFetchSuccess = false;
-  xTaskCreate(weatherFetchTaskFunc, "weather_fetch", 8192, this, 5,
-              (TaskHandle_t *)&fetchTaskHandle);
+  xTaskCreate(weatherFetchTaskFunc, "weather_fetch", 8192, this, 5, (TaskHandle_t*)&fetchTaskHandle);
 }
 
-void WeatherActivity::render(RenderLock &&) {
+void WeatherActivity::render(RenderLock&&) {
   renderer.clearScreen();
 
   const auto pageWidth = renderer.getScreenWidth();
   const auto pageHeight = renderer.getScreenHeight();
-  const auto &metrics = UITheme::getInstance().getMetrics();
+  const auto& metrics = UITheme::getInstance().getMetrics();
 
   if (state == WeatherState::SelectCity) {
-    GUI.drawHeader(renderer,
-                   Rect{0, metrics.topPadding, pageWidth, metrics.headerHeight},
-                   "Select City");
+    GUI.drawHeader(renderer, Rect{0, metrics.topPadding, pageWidth, metrics.headerHeight}, "Select City");
 
     GUI.drawButtonMenu(
         renderer,
-        Rect{
-            0,
-            metrics.topPadding + metrics.headerHeight + metrics.verticalSpacing,
-            pageWidth,
-            pageHeight - (metrics.headerHeight + metrics.topPadding +
-                          metrics.verticalSpacing + metrics.buttonHintsHeight)},
-        CITY_COUNT, selectedCityIndex,
-        [](int index) { return std::string(CITIES[index].name); },
-        [](int index) { return UIIcon::Library; },
-        18);
+        Rect{0, metrics.topPadding + metrics.headerHeight + metrics.verticalSpacing, pageWidth,
+             pageHeight -
+                 (metrics.headerHeight + metrics.topPadding + metrics.verticalSpacing + metrics.buttonHintsHeight)},
+        CITY_COUNT, selectedCityIndex, [](int index) { return std::string(CITIES[index].name); },
+        [](int index) { return UIIcon::Library; }, 18);
 
-    const auto labels = mappedInput.mapLabels(tr(STR_BACK), tr(STR_SELECT),
-                                              tr(STR_DIR_UP), tr(STR_DIR_DOWN));
-    GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3,
-                        labels.btn4);
+    const auto labels = mappedInput.mapLabels(tr(STR_BACK), tr(STR_SELECT), tr(STR_DIR_UP), tr(STR_DIR_DOWN));
+    GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3, labels.btn4);
   } else if (state == WeatherState::Loading) {
-    GUI.drawHeader(renderer,
-                   Rect{0, metrics.topPadding, pageWidth, metrics.headerHeight},
-                   "Weather");
+    GUI.drawHeader(renderer, Rect{0, metrics.topPadding, pageWidth, metrics.headerHeight}, "Weather");
 
-    const int contentTop =
-        metrics.topPadding + metrics.headerHeight + metrics.verticalSpacing;
-    const int contentBottom =
-        pageHeight - metrics.buttonHintsHeight - metrics.verticalSpacing;
+    const int contentTop = metrics.topPadding + metrics.headerHeight + metrics.verticalSpacing;
+    const int contentBottom = pageHeight - metrics.buttonHintsHeight - metrics.verticalSpacing;
     const int contentHeight = contentBottom - contentTop;
 
-    int textY = contentTop + contentHeight / 2 -
-                renderer.getLineHeight(UI_12_FONT_ID) / 2;
+    int textY = contentTop + contentHeight / 2 - renderer.getLineHeight(UI_12_FONT_ID) / 2;
     renderer.drawCenteredText(UI_12_FONT_ID, textY, "Loading weather...");
 
-    const auto labels =
-        mappedInput.mapLabels(tr(STR_BACK), nullptr, nullptr, nullptr);
-    GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3,
-                        labels.btn4);
+    const auto labels = mappedInput.mapLabels(tr(STR_BACK), nullptr, nullptr, nullptr);
+    GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3, labels.btn4);
   } else if (state == WeatherState::ShowWeather) {
-    GUI.drawHeader(renderer,
-                   Rect{0, metrics.topPadding, pageWidth, metrics.headerHeight},
-                   "Weather");
+    GUI.drawHeader(renderer, Rect{0, metrics.topPadding, pageWidth, metrics.headerHeight}, "Weather");
 
-    const int contentTop =
-        metrics.topPadding + metrics.headerHeight + metrics.verticalSpacing;
-    const int contentBottom =
-        pageHeight - metrics.buttonHintsHeight - metrics.verticalSpacing;
+    const int contentTop = metrics.topPadding + metrics.headerHeight + metrics.verticalSpacing;
+    const int contentBottom = pageHeight - metrics.buttonHintsHeight - metrics.verticalSpacing;
     const int contentHeight = contentBottom - contentTop;
 
     const int cardX = metrics.contentSidePadding;
@@ -813,24 +776,20 @@ void WeatherActivity::render(RenderLock &&) {
       char tempBuf[64];
       double tempF = temp * 9.0 / 5.0 + 32.0;
       snprintf(tempBuf, sizeof(tempBuf), "%.1f °C / %.1f °F", temp, tempF);
-      renderer.drawCenteredText(NOTOSANS_18_FONT_ID, cardY + 145, tempBuf, true,
-                                EpdFontFamily::BOLD);
+      renderer.drawCenteredText(NOTOSANS_18_FONT_ID, cardY + 145, tempBuf, true, EpdFontFamily::BOLD);
 
       // City Name
-      renderer.drawCenteredText(NOTOSANS_16_FONT_ID, cardY + 195,
-                                cityName.c_str(), true, EpdFontFamily::BOLD);
+      renderer.drawCenteredText(NOTOSANS_16_FONT_ID, cardY + 195, cityName.c_str(), true, EpdFontFamily::BOLD);
 
       // Weather Description
-      const char *desc = getWeatherDesc(weatherCode);
-      renderer.drawCenteredText(NOTOSANS_14_FONT_ID, cardY + 235, desc, true,
-                                EpdFontFamily::BOLD);
+      const char* desc = getWeatherDesc(weatherCode);
+      renderer.drawCenteredText(NOTOSANS_14_FONT_ID, cardY + 235, desc, true, EpdFontFamily::BOLD);
 
       // Wind Speed
       char windBuf[64];
       double windspeedMph = windspeed * 0.621371;
       snprintf(windBuf, sizeof(windBuf), "Wind: %.1f km/h / %.1f mph", windspeed, windspeedMph);
-      renderer.drawCenteredText(NOTOSANS_12_FONT_ID, cardY + 275, windBuf, true,
-                                EpdFontFamily::REGULAR);
+      renderer.drawCenteredText(NOTOSANS_12_FONT_ID, cardY + 275, windBuf, true, EpdFontFamily::REGULAR);
 
       // Updated Time
       char timeBuf[64];
@@ -844,19 +803,15 @@ void WeatherActivity::render(RenderLock &&) {
         }
         snprintf(timeBuf, sizeof(timeBuf), "Updated: %s", formattedTime.c_str());
       }
-      renderer.drawCenteredText(SMALL_FONT_ID, cardY + 315, timeBuf, true,
-                                EpdFontFamily::REGULAR);
+      renderer.drawCenteredText(SMALL_FONT_ID, cardY + 315, timeBuf, true, EpdFontFamily::REGULAR);
 
     } else {
       int textY = cardY + cardH / 2 - renderer.getLineHeight(UI_10_FONT_ID) / 2;
-      renderer.drawCenteredText(UI_10_FONT_ID, textY, errorMessage.c_str(),
-                                true, EpdFontFamily::BOLD);
+      renderer.drawCenteredText(UI_10_FONT_ID, textY, errorMessage.c_str(), true, EpdFontFamily::BOLD);
     }
 
-    const auto labels = mappedInput.mapLabels(tr(STR_BACK), "Refresh",
-                                              "City", nullptr);
-    GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3,
-                        labels.btn4);
+    const auto labels = mappedInput.mapLabels(tr(STR_BACK), "Refresh", "City", nullptr);
+    GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3, labels.btn4);
   }
 
   renderer.displayBuffer();

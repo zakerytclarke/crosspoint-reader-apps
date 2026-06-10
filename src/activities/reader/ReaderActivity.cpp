@@ -17,10 +17,8 @@
 bool ReaderActivity::isXtcFile(const std::string& path) { return FsHelpers::hasXtcExtension(path); }
 
 bool ReaderActivity::isTxtFile(const std::string& path) {
-  return FsHelpers::hasTxtExtension(path) ||
-         FsHelpers::hasMarkdownExtension(path) ||
-         FsHelpers::checkFileExtension(path, ".html") ||
-         FsHelpers::checkFileExtension(path, ".htm");
+  return FsHelpers::hasTxtExtension(path) || FsHelpers::hasMarkdownExtension(path) ||
+         FsHelpers::checkFileExtension(path, ".html") || FsHelpers::checkFileExtension(path, ".htm");
 }
 
 bool ReaderActivity::isBmpFile(const std::string& path) { return FsHelpers::hasBmpExtension(path); }

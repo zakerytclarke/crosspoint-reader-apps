@@ -1,17 +1,13 @@
 #pragma once
 
-#include "activities/Activity.h"
-#include <string>
-#include <vector>
 #include <atomic>
 #include <functional>
+#include <string>
+#include <vector>
 
-enum class WikiState {
-  OfflineList,
-  SearchResults,
-  Loading,
-  ArticleView
-};
+#include "activities/Activity.h"
+
+enum class WikiState { OfflineList, SearchResults, Loading, ArticleView };
 
 class WikipediaActivity final : public Activity {
  private:
@@ -25,7 +21,7 @@ class WikipediaActivity final : public Activity {
 
   int selectedIndex = 0;
   int listScrollOffset = 0;
-  int articleScrollOffset = 0; // lines scrolled down in ArticleView
+  int articleScrollOffset = 0;  // lines scrolled down in ArticleView
 
   bool pendingSearch = false;
   bool pendingArticle = false;

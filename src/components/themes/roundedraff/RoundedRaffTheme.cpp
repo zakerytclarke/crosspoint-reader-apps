@@ -195,8 +195,7 @@ void RoundedRaffTheme::drawRecentBookCover(GfxRenderer& renderer, Rect rect, con
 
 void RoundedRaffTheme::drawButtonMenu(GfxRenderer& renderer, Rect rect, int buttonCount, int selectedIndex,
                                       const std::function<std::string(int index)>& buttonLabel,
-                                      const std::function<UIIcon(int index)>& rowIcon,
-                                      int maxPageItems) const {
+                                      const std::function<UIIcon(int index)>& rowIcon, int maxPageItems) const {
   (void)rowIcon;
   const int sidePadding = RoundedRaffMetrics::values.contentSidePadding;
   const int rowX = rect.x + sidePadding;

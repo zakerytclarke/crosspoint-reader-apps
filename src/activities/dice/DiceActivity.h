@@ -1,21 +1,17 @@
 #pragma once
 
-#include "activities/Activity.h"
 #include <string>
 
-enum class DiceMode {
-  D6,
-  Arrow,
-  D20,
-  Magic8
-};
+#include "activities/Activity.h"
+
+enum class DiceMode { D6, Arrow, D20, Magic8 };
 
 class DiceActivity final : public Activity {
  private:
   DiceMode currentMode = DiceMode::D6;
 
   int lastRollD6 = 1;
-  int lastRollArrowAngle = 0; // 0 to 359
+  int lastRollArrowAngle = 0;  // 0 to 359
   int lastRollD20 = 20;
   int lastRollMagic8 = 0;
 

@@ -2,6 +2,7 @@
 
 #include <GfxRenderer.h>
 #include <I18n.h>
+
 #include <cstdlib>
 
 #include "MappedInputManager.h"
@@ -10,12 +11,7 @@
 
 namespace {
 const char* const CALC_GRID[5][4] = {
-  { "C", "Del", "", "/" },
-  { "7", "8", "9", "*" },
-  { "4", "5", "6", "-" },
-  { "1", "2", "3", "+" },
-  { "0", ".", "", "=" }
-};
+    {"C", "Del", "", "/"}, {"7", "8", "9", "*"}, {"4", "5", "6", "-"}, {"1", "2", "3", "+"}, {"0", ".", "", "="}};
 
 // Simple recursive descent parser for basic math operations
 double parseExpression(const char*& expr);
@@ -54,7 +50,7 @@ double parseTerm(const char*& expr) {
       if (denom != 0.0) {
         val /= denom;
       } else {
-        val = 0.0; // Avoid divide by zero crash
+        val = 0.0;  // Avoid divide by zero crash
       }
     } else {
       break;
@@ -92,7 +88,7 @@ std::string evaluate(const std::string& str) {
   }
   return std::string(buf);
 }
-} // namespace
+}  // namespace
 
 void CalculatorActivity::onEnter() {
   Activity::onEnter();
@@ -103,9 +99,7 @@ void CalculatorActivity::onEnter() {
   requestUpdate();
 }
 
-void CalculatorActivity::onExit() {
-  Activity::onExit();
-}
+void CalculatorActivity::onExit() { Activity::onExit(); }
 
 void CalculatorActivity::loop() {
   if (mappedInput.wasReleased(MappedInputManager::Button::Back)) {
@@ -162,8 +156,8 @@ void CalculatorActivity::handleConfirm() {
     return;
   }
 
-  bool isOp = (strcmp(label, "+") == 0 || strcmp(label, "-") == 0 ||
-               strcmp(label, "*") == 0 || strcmp(label, "/") == 0);
+  bool isOp =
+      (strcmp(label, "+") == 0 || strcmp(label, "-") == 0 || strcmp(label, "*") == 0 || strcmp(label, "/") == 0);
 
   if (!resultText.empty()) {
     if (isOp) {

@@ -1,16 +1,13 @@
 #pragma once
 
-#include "activities/Activity.h"
-#include <string>
-#include <vector>
 #include <atomic>
 #include <functional>
+#include <string>
+#include <vector>
 
-enum class DDGState {
-  OfflineList,
-  SearchResults,
-  Loading
-};
+#include "activities/Activity.h"
+
+enum class DDGState { OfflineList, SearchResults, Loading };
 
 struct DuckLink {
   std::string title;

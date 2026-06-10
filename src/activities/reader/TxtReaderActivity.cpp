@@ -1,6 +1,6 @@
 #include "TxtReaderActivity.h"
 
-#include <algorithm>
+#include <BidiUtils.h>
 #include <FontCacheManager.h>
 #include <FsHelpers.h>
 #include <GfxRenderer.h>
@@ -9,14 +9,16 @@
 #include <Serialization.h>
 #include <Utf8.h>
 
+#include <algorithm>
+
 #include "CrossPointSettings.h"
 #include "CrossPointState.h"
 #include "MappedInputManager.h"
 #include "ReaderUtils.h"
 #include "RecentBooksStore.h"
+#include "SdCardFontSystem.h"
 #include "components/UITheme.h"
 #include "fontIds.h"
-#include "SdCardFontSystem.h"
 
 namespace {
 constexpr size_t CHUNK_SIZE = 8 * 1024;  // 8KB chunk for reading
@@ -71,10 +73,8 @@ void TxtReaderActivity::loop() {
   // Short press BACK goes directly to home (or pops to caller if it's a Wikipedia/RSS downloaded link)
   if (mappedInput.wasReleased(MappedInputManager::Button::Back) &&
       mappedInput.getHeldTime() < ReaderUtils::GO_HOME_MS) {
-    if (txt && (txt->getPath().rfind("/apps/wikipedia/", 0) == 0 ||
-                txt->getPath().rfind("/apps/websites/", 0) == 0 ||
-                txt->getPath().rfind("/websites/", 0) == 0 ||
-                txt->getPath().rfind("/apps/webbrowser/", 0) == 0 ||
+    if (txt && (txt->getPath().rfind("/apps/wikipedia/", 0) == 0 || txt->getPath().rfind("/apps/websites/", 0) == 0 ||
+                txt->getPath().rfind("/websites/", 0) == 0 || txt->getPath().rfind("/apps/webbrowser/", 0) == 0 ||
                 txt->getPath().rfind("/apps/rss/", 0) == 0)) {
       activityManager.popActivity();
     } else {
@@ -135,7 +135,7 @@ void TxtReaderActivity::initializeReader() {
 
   if (!loadIndex()) {
     GUI.drawPopup(renderer, tr(STR_INDEXING));
-    renderer.displayBuffer(); // Actually push the popup to the screen
+    renderer.displayBuffer();  // Actually push the popup to the screen
     buildIndex();
     saveIndex();
   }
@@ -154,8 +154,8 @@ bool TxtReaderActivity::loadPageAtOffset(size_t offset, std::vector<std::string>
     return false;
   }
 
-  bool isHtml = FsHelpers::checkFileExtension(txt->getPath(), ".html") ||
-                FsHelpers::checkFileExtension(txt->getPath(), ".htm");
+  bool isHtml =
+      FsHelpers::checkFileExtension(txt->getPath(), ".html") || FsHelpers::checkFileExtension(txt->getPath(), ".htm");
 
   if (isHtml) {
     size_t currentOffset = offset;
@@ -173,11 +173,11 @@ bool TxtReaderActivity::loadPageAtOffset(size_t offset, std::vector<std::string>
         size_t toRead = std::min(CHUNK_SIZE, fileSize - currentOffset);
         if (!txt->readContent(buffer, currentOffset, toRead)) return -1;
         buffer[toRead] = '\0';
-        
+
         if (renderer.isSdCardFont(cachedFontId)) {
           renderer.ensureSdCardFontReady(cachedFontId, reinterpret_cast<const char*>(buffer), 0x01);
         }
-        
+
         bytesReadInChunk = toRead;
         currentOffset += toRead;
         bufferPos = 0;
@@ -185,9 +185,7 @@ bool TxtReaderActivity::loadPageAtOffset(size_t offset, std::vector<std::string>
       return buffer[bufferPos++];
     };
 
-    auto getFilePos = [&]() -> size_t {
-      return currentOffset - bytesReadInChunk + bufferPos - 1;
-    };
+    auto getFilePos = [&]() -> size_t { return currentOffset - bytesReadInChunk + bufferPos - 1; };
 
     std::string cleanLine = "";
     std::vector<size_t> cleanLineOffsets;
@@ -211,16 +209,20 @@ bool TxtReaderActivity::loadPageAtOffset(size_t offset, std::vector<std::string>
             int dashCount = 0;
             int cm;
             while ((cm = getChar()) != -1) {
-              if (cm == '-') dashCount++;
-              else if (cm == '>' && dashCount >= 2) break;
-              else dashCount = 0;
+              if (cm == '-')
+                dashCount++;
+              else if (cm == '>' && dashCount >= 2)
+                break;
+              else
+                dashCount = 0;
             }
             continue;
           } else {
-             // Not a comment, ignore DOCTYPE etc.
-             int cm;
-             while ((cm = getChar()) != -1 && cm != '>') {}
-             continue;
+            // Not a comment, ignore DOCTYPE etc.
+            int cm;
+            while ((cm = getChar()) != -1 && cm != '>') {
+            }
+            continue;
           }
         }
 
@@ -246,7 +248,8 @@ bool TxtReaderActivity::loadPageAtOffset(size_t offset, std::vector<std::string>
         }
 
         // Fast path for skipping content tags
-        if (!isClosing && (tagName == "style" || tagName == "script" || tagName == "head" || tagName == "svg" || tagName == "nav" || tagName == "noscript" || tagName == "iframe")) {
+        if (!isClosing && (tagName == "style" || tagName == "script" || tagName == "head" || tagName == "svg" ||
+                           tagName == "nav" || tagName == "noscript" || tagName == "iframe")) {
           std::string closeTag = "</" + tagName + ">";
           size_t matchIdx = 0;
           int sc;
@@ -255,8 +258,10 @@ bool TxtReaderActivity::loadPageAtOffset(size_t offset, std::vector<std::string>
               matchIdx++;
               if (matchIdx == closeTag.length()) break;
             } else {
-              if (tolower(sc) == closeTag[0]) matchIdx = 1;
-              else matchIdx = 0;
+              if (tolower(sc) == closeTag[0])
+                matchIdx = 1;
+              else
+                matchIdx = 0;
             }
           }
           continue;
@@ -264,65 +269,116 @@ bool TxtReaderActivity::loadPageAtOffset(size_t offset, std::vector<std::string>
 
         // Structural tags
         if (tagName == "h1") {
-          if (!cleanLine.empty()) { 
-             size_t consumed = wrapAndPushHtmlLine(cleanLine, marker, style, indent, outLines);
-             if (consumed < cleanLine.length()) { nextOffset = cleanLineOffsets[consumed]; free(buffer); return true; }
-             cleanLine.clear(); cleanLineOffsets.clear();
+          if (!cleanLine.empty()) {
+            size_t consumed = wrapAndPushHtmlLine(cleanLine, marker, style, indent, outLines);
+            if (consumed < cleanLine.length()) {
+              nextOffset = cleanLineOffsets[consumed];
+              free(buffer);
+              return true;
+            }
+            cleanLine.clear();
+            cleanLineOffsets.clear();
           }
           marker = isClosing ? '\7' : '\1';
           style = isClosing ? EpdFontFamily::REGULAR : EpdFontFamily::BOLD;
           indent = 0;
         } else if (tagName == "h2") {
-          if (!cleanLine.empty()) { 
-             size_t consumed = wrapAndPushHtmlLine(cleanLine, marker, style, indent, outLines);
-             if (consumed < cleanLine.length()) { nextOffset = cleanLineOffsets[consumed]; free(buffer); return true; }
-             cleanLine.clear(); cleanLineOffsets.clear();
+          if (!cleanLine.empty()) {
+            size_t consumed = wrapAndPushHtmlLine(cleanLine, marker, style, indent, outLines);
+            if (consumed < cleanLine.length()) {
+              nextOffset = cleanLineOffsets[consumed];
+              free(buffer);
+              return true;
+            }
+            cleanLine.clear();
+            cleanLineOffsets.clear();
           }
           marker = isClosing ? '\7' : '\2';
           style = isClosing ? EpdFontFamily::REGULAR : EpdFontFamily::BOLD;
           indent = 0;
         } else if (tagName == "h3") {
-          if (!cleanLine.empty()) { 
-             size_t consumed = wrapAndPushHtmlLine(cleanLine, marker, style, indent, outLines);
-             if (consumed < cleanLine.length()) { nextOffset = cleanLineOffsets[consumed]; free(buffer); return true; }
-             cleanLine.clear(); cleanLineOffsets.clear();
+          if (!cleanLine.empty()) {
+            size_t consumed = wrapAndPushHtmlLine(cleanLine, marker, style, indent, outLines);
+            if (consumed < cleanLine.length()) {
+              nextOffset = cleanLineOffsets[consumed];
+              free(buffer);
+              return true;
+            }
+            cleanLine.clear();
+            cleanLineOffsets.clear();
           }
           marker = isClosing ? '\7' : '\3';
           style = isClosing ? EpdFontFamily::REGULAR : EpdFontFamily::BOLD;
           indent = 0;
         } else if (tagName == "blockquote") {
-          if (!cleanLine.empty()) { 
-             size_t consumed = wrapAndPushHtmlLine(cleanLine, marker, style, indent, outLines);
-             if (consumed < cleanLine.length()) { nextOffset = cleanLineOffsets[consumed]; free(buffer); return true; }
-             cleanLine.clear(); cleanLineOffsets.clear();
+          if (!cleanLine.empty()) {
+            size_t consumed = wrapAndPushHtmlLine(cleanLine, marker, style, indent, outLines);
+            if (consumed < cleanLine.length()) {
+              nextOffset = cleanLineOffsets[consumed];
+              free(buffer);
+              return true;
+            }
+            cleanLine.clear();
+            cleanLineOffsets.clear();
           }
           insideBlockquote = !isClosing;
           marker = isClosing ? '\7' : '\4';
           style = isClosing ? EpdFontFamily::REGULAR : EpdFontFamily::ITALIC;
           indent = isClosing ? 0 : 15;
         } else if (tagName == "li") {
-          if (!cleanLine.empty()) { 
-             size_t consumed = wrapAndPushHtmlLine(cleanLine, marker, style, indent, outLines);
-             if (consumed < cleanLine.length()) { nextOffset = cleanLineOffsets[consumed]; free(buffer); return true; }
-             cleanLine.clear(); cleanLineOffsets.clear();
+          if (!cleanLine.empty()) {
+            size_t consumed = wrapAndPushHtmlLine(cleanLine, marker, style, indent, outLines);
+            if (consumed < cleanLine.length()) {
+              nextOffset = cleanLineOffsets[consumed];
+              free(buffer);
+              return true;
+            }
+            cleanLine.clear();
+            cleanLineOffsets.clear();
           }
-          if (!isClosing) { marker = '\5'; indent = 15; cleanLine = "•  "; cleanLineOffsets.insert(cleanLineOffsets.end(), 3, getFilePos()); } 
-          else { marker = '\7'; indent = 0; }
+          if (!isClosing) {
+            marker = '\5';
+            indent = 15;
+            cleanLine = "•  ";
+            cleanLineOffsets.insert(cleanLineOffsets.end(), 3, getFilePos());
+          } else {
+            marker = '\7';
+            indent = 0;
+          }
         } else if (tagName == "hr") {
-          if (!cleanLine.empty()) { 
-             size_t consumed = wrapAndPushHtmlLine(cleanLine, marker, style, indent, outLines);
-             if (consumed < cleanLine.length()) { nextOffset = cleanLineOffsets[consumed]; free(buffer); return true; }
-             cleanLine.clear(); cleanLineOffsets.clear();
+          if (!cleanLine.empty()) {
+            size_t consumed = wrapAndPushHtmlLine(cleanLine, marker, style, indent, outLines);
+            if (consumed < cleanLine.length()) {
+              nextOffset = cleanLineOffsets[consumed];
+              free(buffer);
+              return true;
+            }
+            cleanLine.clear();
+            cleanLineOffsets.clear();
           }
-          std::string hrStr = ""; hrStr += '\6'; outLines.push_back(hrStr);
+          std::string hrStr = "";
+          hrStr += '\6';
+          outLines.push_back(hrStr);
         } else if (tagName == "p" || tagName == "div" || tagName == "br") {
-          if (!cleanLine.empty()) { 
-             size_t consumed = wrapAndPushHtmlLine(cleanLine, marker, style, indent, outLines);
-             if (consumed < cleanLine.length()) { nextOffset = cleanLineOffsets[consumed]; free(buffer); return true; }
-             cleanLine.clear(); cleanLineOffsets.clear();
+          if (!cleanLine.empty()) {
+            size_t consumed = wrapAndPushHtmlLine(cleanLine, marker, style, indent, outLines);
+            if (consumed < cleanLine.length()) {
+              nextOffset = cleanLineOffsets[consumed];
+              free(buffer);
+              return true;
+            }
+            cleanLine.clear();
+            cleanLineOffsets.clear();
           }
-          if (insideBlockquote) { marker = '\4'; style = EpdFontFamily::ITALIC; indent = 15; } 
-          else { marker = '\7'; style = EpdFontFamily::REGULAR; indent = 0; }
+          if (insideBlockquote) {
+            marker = '\4';
+            style = EpdFontFamily::ITALIC;
+            indent = 15;
+          } else {
+            marker = '\7';
+            style = EpdFontFamily::REGULAR;
+            indent = 0;
+          }
         }
 
         lastWasSpace = true;
@@ -339,22 +395,28 @@ bool TxtReaderActivity::loadPageAtOffset(size_t offset, std::vector<std::string>
         int aheadCount = 0;
         while (aheadCount < 10 && (ec = getChar()) != -1) {
           ahead[aheadCount++] = ec;
-          if (ec == ';') { foundSemi = true; break; }
+          if (ec == ';') {
+            foundSemi = true;
+            break;
+          }
         }
 
         if (foundSemi) {
           for (int k = 0; k < aheadCount - 1; k++) entity += static_cast<char>(ahead[k]);
           int code = 0;
           bool decoded = false;
-          
+
           if (!entity.empty() && entity[0] == '#') {
             decoded = true;
             if (entity.length() > 2 && (entity[1] == 'x' || entity[1] == 'X')) {
               for (size_t j = 2; j < entity.length(); j++) {
                 char ch = entity[j];
-                if (ch >= '0' && ch <= '9') code = code * 16 + (ch - '0');
-                else if (ch >= 'a' && ch <= 'f') code = code * 16 + (ch - 'a' + 10);
-                else if (ch >= 'A' && ch <= 'F') code = code * 16 + (ch - 'A' + 10);
+                if (ch >= '0' && ch <= '9')
+                  code = code * 16 + (ch - '0');
+                else if (ch >= 'a' && ch <= 'f')
+                  code = code * 16 + (ch - 'a' + 10);
+                else if (ch >= 'A' && ch <= 'F')
+                  code = code * 16 + (ch - 'A' + 10);
               }
             } else {
               for (size_t j = 1; j < entity.length(); j++) {
@@ -363,60 +425,126 @@ bool TxtReaderActivity::loadPageAtOffset(size_t offset, std::vector<std::string>
               }
             }
           } else {
-            if (entity == "nbsp") { code = 32; decoded = true; }
-            else if (entity == "amp") { code = 38; decoded = true; }
-            else if (entity == "lt") { code = 60; decoded = true; }
-            else if (entity == "gt") { code = 62; decoded = true; }
-            else if (entity == "quot") { code = 34; decoded = true; }
-            else if (entity == "apos" || entity == "#39") { code = 39; decoded = true; }
-            else if (entity == "ldquo") { code = 8220; decoded = true; }
-            else if (entity == "rdquo") { code = 8221; decoded = true; }
-            else if (entity == "lsquo") { code = 8216; decoded = true; }
-            else if (entity == "rsquo") { code = 8217; decoded = true; }
-            else if (entity == "ndash") { code = 8211; decoded = true; }
-            else if (entity == "mdash") { code = 8212; decoded = true; }
-            else if (entity == "hellip") { code = 8230; decoded = true; }
-            else if (entity == "euro") { code = 8364; decoded = true; }
-            else if (entity == "copy") { code = 169; decoded = true; }
-            else if (entity == "reg") { code = 174; decoded = true; }
-            else if (entity == "trade") { code = 8482; decoded = true; }
+            if (entity == "nbsp") {
+              code = 32;
+              decoded = true;
+            } else if (entity == "amp") {
+              code = 38;
+              decoded = true;
+            } else if (entity == "lt") {
+              code = 60;
+              decoded = true;
+            } else if (entity == "gt") {
+              code = 62;
+              decoded = true;
+            } else if (entity == "quot") {
+              code = 34;
+              decoded = true;
+            } else if (entity == "apos" || entity == "#39") {
+              code = 39;
+              decoded = true;
+            } else if (entity == "ldquo") {
+              code = 8220;
+              decoded = true;
+            } else if (entity == "rdquo") {
+              code = 8221;
+              decoded = true;
+            } else if (entity == "lsquo") {
+              code = 8216;
+              decoded = true;
+            } else if (entity == "rsquo") {
+              code = 8217;
+              decoded = true;
+            } else if (entity == "ndash") {
+              code = 8211;
+              decoded = true;
+            } else if (entity == "mdash") {
+              code = 8212;
+              decoded = true;
+            } else if (entity == "hellip") {
+              code = 8230;
+              decoded = true;
+            } else if (entity == "euro") {
+              code = 8364;
+              decoded = true;
+            } else if (entity == "copy") {
+              code = 169;
+              decoded = true;
+            } else if (entity == "reg") {
+              code = 174;
+              decoded = true;
+            } else if (entity == "trade") {
+              code = 8482;
+              decoded = true;
+            }
           }
-          
+
           if (decoded && code > 0) {
             std::string utf8_char = "";
-            if (code <= 0x7F) utf8_char += static_cast<char>(code);
-            else if (code <= 0x7FF) { utf8_char += static_cast<char>(0xC0 | ((code >> 6) & 0x1F)); utf8_char += static_cast<char>(0x80 | (code & 0x3F)); }
-            else if (code <= 0xFFFF) { utf8_char += static_cast<char>(0xE0 | ((code >> 12) & 0x0F)); utf8_char += static_cast<char>(0x80 | ((code >> 6) & 0x3F)); utf8_char += static_cast<char>(0x80 | (code & 0x3F)); }
-            else if (code <= 0x10FFFF) { utf8_char += static_cast<char>(0xF0 | ((code >> 18) & 0x07)); utf8_char += static_cast<char>(0x80 | ((code >> 12) & 0x3F)); utf8_char += static_cast<char>(0x80 | ((code >> 6) & 0x3F)); utf8_char += static_cast<char>(0x80 | (code & 0x3F)); }
-            
+            if (code <= 0x7F)
+              utf8_char += static_cast<char>(code);
+            else if (code <= 0x7FF) {
+              utf8_char += static_cast<char>(0xC0 | ((code >> 6) & 0x1F));
+              utf8_char += static_cast<char>(0x80 | (code & 0x3F));
+            } else if (code <= 0xFFFF) {
+              utf8_char += static_cast<char>(0xE0 | ((code >> 12) & 0x0F));
+              utf8_char += static_cast<char>(0x80 | ((code >> 6) & 0x3F));
+              utf8_char += static_cast<char>(0x80 | (code & 0x3F));
+            } else if (code <= 0x10FFFF) {
+              utf8_char += static_cast<char>(0xF0 | ((code >> 18) & 0x07));
+              utf8_char += static_cast<char>(0x80 | ((code >> 12) & 0x3F));
+              utf8_char += static_cast<char>(0x80 | ((code >> 6) & 0x3F));
+              utf8_char += static_cast<char>(0x80 | (code & 0x3F));
+            }
+
             for (char uc : utf8_char) {
               if (isspace(uc)) {
-                if (!lastWasSpace) { cleanLine += ' '; cleanLineOffsets.push_back(entityStartPos); lastWasSpace = true; }
+                if (!lastWasSpace) {
+                  cleanLine += ' ';
+                  cleanLineOffsets.push_back(entityStartPos);
+                  lastWasSpace = true;
+                }
               } else {
-                cleanLine += uc; cleanLineOffsets.push_back(entityStartPos); lastWasSpace = false;
+                cleanLine += uc;
+                cleanLineOffsets.push_back(entityStartPos);
+                lastWasSpace = false;
               }
             }
             continue;
           }
         }
-        
-        cleanLine += '&'; cleanLineOffsets.push_back(entityStartPos); lastWasSpace = false;
+
+        cleanLine += '&';
+        cleanLineOffsets.push_back(entityStartPos);
+        lastWasSpace = false;
         for (int k = 0; k < aheadCount; k++) {
-           char ac = static_cast<char>(ahead[k]);
-           size_t acPos = entityStartPos + 1 + k;
-           if (isspace(ac)) {
-             if (!lastWasSpace) { cleanLine += ' '; cleanLineOffsets.push_back(acPos); lastWasSpace = true; }
-           } else {
-             cleanLine += ac; cleanLineOffsets.push_back(acPos); lastWasSpace = false;
-           }
+          char ac = static_cast<char>(ahead[k]);
+          size_t acPos = entityStartPos + 1 + k;
+          if (isspace(ac)) {
+            if (!lastWasSpace) {
+              cleanLine += ' ';
+              cleanLineOffsets.push_back(acPos);
+              lastWasSpace = true;
+            }
+          } else {
+            cleanLine += ac;
+            cleanLineOffsets.push_back(acPos);
+            lastWasSpace = false;
+          }
         }
         continue;
       }
 
       if (isspace(c)) {
-        if (!lastWasSpace) { cleanLine += ' '; cleanLineOffsets.push_back(getFilePos()); lastWasSpace = true; }
+        if (!lastWasSpace) {
+          cleanLine += ' ';
+          cleanLineOffsets.push_back(getFilePos());
+          lastWasSpace = true;
+        }
       } else {
-        cleanLine += static_cast<char>(c); cleanLineOffsets.push_back(getFilePos()); lastWasSpace = false;
+        cleanLine += static_cast<char>(c);
+        cleanLineOffsets.push_back(getFilePos());
+        lastWasSpace = false;
       }
     }
 
@@ -479,7 +607,7 @@ bool TxtReaderActivity::loadPageAtOffset(size_t offset, std::vector<std::string>
     std::string line(reinterpret_cast<char*>(buffer + pos), displayLen);
     size_t lineBytePos = 0;
     bool isMarkdown = FsHelpers::hasMarkdownExtension(txt->getPath());
-    char marker = '\7'; // Default: normal text
+    char marker = '\7';  // Default: normal text
     EpdFontFamily::Style style = EpdFontFamily::REGULAR;
     int indent = 0;
     std::string cleanLine = line;
@@ -570,32 +698,32 @@ bool TxtReaderActivity::loadPageAtOffset(size_t offset, std::vector<std::string>
 
     if (!isContinuation && isMarkdown) {
       if (line.rfind("# ", 0) == 0) {
-        marker = '\1'; // H1
+        marker = '\1';  // H1
         style = EpdFontFamily::BOLD;
         cleanLine = line.substr(2);
       } else if (line.rfind("## ", 0) == 0) {
-        marker = '\2'; // H2
+        marker = '\2';  // H2
         style = EpdFontFamily::BOLD;
         cleanLine = line.substr(3);
       } else if (line.rfind("### ", 0) == 0) {
-        marker = '\3'; // H3
+        marker = '\3';  // H3
         style = EpdFontFamily::BOLD;
         cleanLine = line.substr(4);
       } else if (line.rfind("> ", 0) == 0) {
-        marker = '\4'; // Blockquote
+        marker = '\4';  // Blockquote
         style = EpdFontFamily::ITALIC;
         indent = 15;
         cleanLine = line.substr(2);
       } else if (line.rfind("- ", 0) == 0) {
-        marker = '\5'; // Bullet point
+        marker = '\5';  // Bullet point
         indent = 15;
         cleanLine = "•  " + line.substr(2);
       } else if (line.rfind("* ", 0) == 0) {
-        marker = '\5'; // Bullet point
+        marker = '\5';  // Bullet point
         indent = 15;
         cleanLine = "•  " + line.substr(2);
       } else if (line == "---" || line == "***" || line == "___") {
-        marker = '\6'; // Horizontal rule
+        marker = '\6';  // Horizontal rule
         cleanLine = "";
       }
     }
@@ -736,9 +864,8 @@ void TxtReaderActivity::render(RenderLock&&) {
   }
 
   // Check if settings changed since initialization
-  if (initialized && (cachedFontId != SETTINGS.getReaderFontId() ||
-                       cachedScreenMargin != SETTINGS.screenMargin ||
-                       cachedParagraphAlignment != SETTINGS.paragraphAlignment)) {
+  if (initialized && (cachedFontId != SETTINGS.getReaderFontId() || cachedScreenMargin != SETTINGS.screenMargin ||
+                      cachedParagraphAlignment != SETTINGS.paragraphAlignment)) {
     initialized = false;
   }
 
@@ -799,18 +926,18 @@ void TxtReaderActivity::renderPage() {
         char type = line[0];
         line = line.substr(1);
 
-        if (type == '\1') { // H1
+        if (type == '\1') {  // H1
           style = EpdFontFamily::BOLD;
           isH1 = true;
-        } else if (type == '\2' || type == '\3') { // H2, H3
+        } else if (type == '\2' || type == '\3') {  // H2, H3
           style = EpdFontFamily::BOLD;
-        } else if (type == '\4') { // Quote
+        } else if (type == '\4') {  // Quote
           style = EpdFontFamily::ITALIC;
           indent = 15;
           isQuote = true;
-        } else if (type == '\5') { // Bullet
+        } else if (type == '\5') {  // Bullet
           indent = 15;
-        } else if (type == '\6') { // HR
+        } else if (type == '\6') {  // HR
           isHR = true;
         }
       }
@@ -823,20 +950,27 @@ void TxtReaderActivity::renderPage() {
       } else if (!line.empty()) {
         int x = cachedOrientedMarginLeft + indent;
 
+        const bool lineIsRtl = BidiUtils::startsWithRtl(line.c_str(), BidiUtils::RTL_PARAGRAPH_PROBE_DEPTH);
+        uint8_t effectiveAlignment = cachedParagraphAlignment;
+        if (lineIsRtl && (effectiveAlignment == CrossPointSettings::LEFT_ALIGN ||
+                          effectiveAlignment == CrossPointSettings::JUSTIFIED)) {
+          effectiveAlignment = CrossPointSettings::RIGHT_ALIGN;
+        }
+
         // Apply text alignment
-        switch (cachedParagraphAlignment) {
+        switch (effectiveAlignment) {
           case CrossPointSettings::LEFT_ALIGN:
           default:
             // x already set
             break;
           case CrossPointSettings::CENTER_ALIGN: {
             int textWidth = renderer.getTextAdvanceX(cachedFontId, line.c_str(), style);
-            x = cachedOrientedMarginLeft + indent + (viewportWidth - indent - textWidth) / 2;
+            x = cachedOrientedMarginLeft + indent + (contentWidth - indent - textWidth) / 2;
             break;
           }
           case CrossPointSettings::RIGHT_ALIGN: {
             int textWidth = renderer.getTextAdvanceX(cachedFontId, line.c_str(), style);
-            x = cachedOrientedMarginLeft + viewportWidth - textWidth;
+            x = cachedOrientedMarginLeft + contentWidth - textWidth;
             break;
           }
           case CrossPointSettings::JUSTIFIED:
@@ -905,16 +1039,14 @@ bool TxtReaderActivity::loadIndex() {
         f.read(reinterpret_cast<uint8_t*>(&right), sizeof(right)) == sizeof(right) &&
         f.read(reinterpret_cast<uint8_t*>(&bottom), sizeof(bottom)) == sizeof(bottom) &&
         f.read(reinterpret_cast<uint8_t*>(&left), sizeof(left)) == sizeof(left)) {
-
-      if (magic == CACHE_MAGIC && version == CACHE_VERSION &&
-          fontId == cachedFontId && screenMargin == cachedScreenMargin &&
-          top == cachedOrientedMarginTop && right == cachedOrientedMarginRight &&
+      if (magic == CACHE_MAGIC && version == CACHE_VERSION && fontId == cachedFontId &&
+          screenMargin == cachedScreenMargin && top == cachedOrientedMarginTop && right == cachedOrientedMarginRight &&
           bottom == cachedOrientedMarginBottom && left == cachedOrientedMarginLeft) {
-        
         uint32_t count;
         if (f.read(reinterpret_cast<uint8_t*>(&count), sizeof(count)) == sizeof(count)) {
           pageOffsets.resize(count);
-          if (f.read(reinterpret_cast<uint8_t*>(pageOffsets.data()), count * sizeof(size_t)) == count * sizeof(size_t)) {
+          if (f.read(reinterpret_cast<uint8_t*>(pageOffsets.data()), count * sizeof(size_t)) ==
+              count * sizeof(size_t)) {
             f.close();
             totalPages = count;
             return true;
@@ -931,7 +1063,7 @@ void TxtReaderActivity::buildIndex() {
   pageOffsets.clear();
   size_t currentOffset = 0;
   size_t fileSize = txt->getFileSize();
-  
+
   while (currentOffset < fileSize) {
     pageOffsets.push_back(currentOffset);
     std::vector<std::string> tempLines;
@@ -962,7 +1094,7 @@ void TxtReaderActivity::saveIndex() const {
     f.write(reinterpret_cast<const uint8_t*>(&cachedOrientedMarginRight), sizeof(cachedOrientedMarginRight));
     f.write(reinterpret_cast<const uint8_t*>(&cachedOrientedMarginBottom), sizeof(cachedOrientedMarginBottom));
     f.write(reinterpret_cast<const uint8_t*>(&cachedOrientedMarginLeft), sizeof(cachedOrientedMarginLeft));
-    
+
     uint32_t count = pageOffsets.size();
     f.write(reinterpret_cast<const uint8_t*>(&count), sizeof(count));
     f.write(reinterpret_cast<const uint8_t*>(pageOffsets.data()), count * sizeof(size_t));
@@ -1030,12 +1162,14 @@ ScreenshotInfo TxtReaderActivity::getScreenshotInfo() const {
   }
 
   info.totalPages = estimatedTotalPages;
-  info.progressPercent = estimatedTotalPages > 0 ? static_cast<int>((currentPage + 1) * 100.0f / estimatedTotalPages + 0.5f) : 0;
+  info.progressPercent =
+      estimatedTotalPages > 0 ? static_cast<int>((currentPage + 1) * 100.0f / estimatedTotalPages + 0.5f) : 0;
   if (info.progressPercent > 100) info.progressPercent = 100;
   return info;
 }
 
-size_t TxtReaderActivity::wrapAndPushHtmlLine(const std::string& line, char marker, EpdFontFamily::Style style, int indent, std::vector<std::string>& outLines) {
+size_t TxtReaderActivity::wrapAndPushHtmlLine(const std::string& line, char marker, EpdFontFamily::Style style,
+                                              int indent, std::vector<std::string>& outLines) {
   std::string cleanLine = line;
   bool firstSegment = true;
   size_t charsConsumed = 0;
@@ -1114,6 +1248,6 @@ size_t TxtReaderActivity::wrapAndPushHtmlLine(const std::string& line, char mark
     cleanLine = cleanLine.substr(skipChars);
     firstSegment = false;
   }
-  
+
   return charsConsumed;
 }

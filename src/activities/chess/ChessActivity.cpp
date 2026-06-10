@@ -1,10 +1,13 @@
 #include "ChessActivity.h"
-#include <algorithm>
+
+#include <Arduino.h>
 #include <GfxRenderer.h>
 #include <I18n.h>
-#include <cstdlib>
+
+#include <algorithm>
 #include <cmath>
-#include <Arduino.h>
+#include <cstdlib>
+
 #include "MappedInputManager.h"
 #include "components/UITheme.h"
 #include "fontIds.h"
@@ -25,7 +28,7 @@ static void drawCircle(const GfxRenderer& renderer, int x0, int y0, int radius, 
       renderer.drawPixel(x0 - y, y0 - x, state);
       renderer.drawPixel(x0 + y, y0 - x, state);
       renderer.drawPixel(x0 + x, y0 - y, state);
-      
+
       if (err >= 0) {
         x -= 1;
         err += 4 * (y - x) + 10;
@@ -79,9 +82,7 @@ void ChessActivity::onEnter() {
   requestUpdate();
 }
 
-void ChessActivity::onExit() {
-  Activity::onExit();
-}
+void ChessActivity::onExit() { Activity::onExit(); }
 
 void ChessActivity::setupInitialBoard() {
   // Empty board
@@ -93,29 +94,29 @@ void ChessActivity::setupInitialBoard() {
 
   // Pawns
   for (int c = 0; c < 8; c++) {
-    board[1][c] = -1; // Black Pawn
-    board[6][c] = 1;  // White Pawn
+    board[1][c] = -1;  // Black Pawn
+    board[6][c] = 1;   // White Pawn
   }
 
   // Rooks
-  board[0][0] = board[0][7] = -4; // Black
-  board[7][0] = board[7][7] = 4;  // White
+  board[0][0] = board[0][7] = -4;  // Black
+  board[7][0] = board[7][7] = 4;   // White
 
   // Knights
-  board[0][1] = board[0][6] = -2; // Black
-  board[7][1] = board[7][6] = 2;  // White
+  board[0][1] = board[0][6] = -2;  // Black
+  board[7][1] = board[7][6] = 2;   // White
 
   // Bishops
-  board[0][2] = board[0][5] = -3; // Black
-  board[7][2] = board[7][5] = 3;  // White
+  board[0][2] = board[0][5] = -3;  // Black
+  board[7][2] = board[7][5] = 3;   // White
 
   // Queens
-  board[0][3] = -5; // Black Queen
-  board[7][3] = 5;  // White Queen
+  board[0][3] = -5;  // Black Queen
+  board[7][3] = 5;   // White Queen
 
   // Kings
-  board[0][4] = -6; // Black King
-  board[7][4] = 6;  // White King
+  board[0][4] = -6;  // Black King
+  board[7][4] = 6;   // White King
 }
 
 bool ChessActivity::isPathClear(int fromRow, int fromCol, int toRow, int toCol) const {
@@ -152,7 +153,7 @@ bool ChessActivity::isValidMove(int fromRow, int fromCol, int toRow, int toCol) 
   int absPiece = abs(piece);
 
   switch (absPiece) {
-    case 1: { // Pawn
+    case 1: {  // Pawn
       int dir = (piece > 0) ? -1 : 1;
       // Single step forward
       if (dr == dir && dc == 0 && target == 0) {
@@ -169,28 +170,28 @@ bool ChessActivity::isValidMove(int fromRow, int fromCol, int toRow, int toCol) 
       }
       return false;
     }
-    case 2: // Knight
+    case 2:  // Knight
       return (abs(dr) * abs(dc) == 2);
 
-    case 3: // Bishop
+    case 3:  // Bishop
       if (abs(dr) == abs(dc)) {
         return isPathClear(fromRow, fromCol, toRow, toCol);
       }
       return false;
 
-    case 4: // Rook
+    case 4:  // Rook
       if (dr == 0 || dc == 0) {
         return isPathClear(fromRow, fromCol, toRow, toCol);
       }
       return false;
 
-    case 5: // Queen
+    case 5:  // Queen
       if (abs(dr) == abs(dc) || dr == 0 || dc == 0) {
         return isPathClear(fromRow, fromCol, toRow, toCol);
       }
       return false;
 
-    case 6: // King
+    case 6:  // King
       return (std::max(abs(dr), abs(dc)) == 1);
 
     default:
@@ -295,7 +296,7 @@ void ChessActivity::loop() {
       requestUpdate();
     } else if (mappedInput.wasReleased(MappedInputManager::Button::Confirm)) {
       int clickedPiece = board[cursorRow][cursorCol];
-      
+
       if (selectedRow == -1) {
         // First selection click
         if (clickedPiece != 0 && ((whiteTurn && clickedPiece > 0) || (!whiteTurn && clickedPiece < 0))) {
@@ -318,12 +319,12 @@ void ChessActivity::loop() {
         } else if (isValidMove(selectedRow, selectedCol, cursorRow, cursorCol)) {
           // Perform move
           int movingPiece = board[selectedRow][selectedCol];
-          
+
           // Check Pawn Promotion
           if (abs(movingPiece) == 1 && (cursorRow == 0 || cursorRow == 7)) {
-            movingPiece = (movingPiece > 0) ? 5 : -5; // Auto-promote to Queen
+            movingPiece = (movingPiece > 0) ? 5 : -5;  // Auto-promote to Queen
           }
-          
+
           board[cursorRow][cursorCol] = movingPiece;
           board[selectedRow][selectedCol] = 0;
 
@@ -363,9 +364,8 @@ void ChessActivity::render(RenderLock&&) {
   }
   renderer.drawText(SMALL_FONT_ID, 170, toolbarY + 7, "Flip Board", !flipSel);
 
-
   // Chess Board dimensions
-  const int cellS = 48; // 48x48 squares to fit 48pt emoji font
+  const int cellS = 48;  // 48x48 squares to fit 48pt emoji font
   const int boardW = 8 * cellS;
   const int gridX = (pageWidth - boardW) / 2;
   const int gridY = toolbarY + 50;
@@ -398,18 +398,42 @@ void ChessActivity::render(RenderLock&&) {
       if (piece != 0) {
         const char* pieceStr = "";
         switch (piece) {
-          case 1:  pieceStr = "\u2659"; break; // White Pawn
-          case 2:  pieceStr = "\u2658"; break; // White Knight
-          case 3:  pieceStr = "\u2657"; break; // White Bishop
-          case 4:  pieceStr = "\u2656"; break; // White Rook
-          case 5:  pieceStr = "\u2655"; break; // White Queen
-          case 6:  pieceStr = "\u2654"; break; // White King
-          case -1: pieceStr = "\u265F"; break; // Black Pawn
-          case -2: pieceStr = "\u265E"; break; // Black Knight
-          case -3: pieceStr = "\u265D"; break; // Black Bishop
-          case -4: pieceStr = "\u265C"; break; // Black Rook
-          case -5: pieceStr = "\u265B"; break; // Black Queen
-          case -6: pieceStr = "\u265A"; break; // Black King
+          case 1:
+            pieceStr = "\u2659";
+            break;  // White Pawn
+          case 2:
+            pieceStr = "\u2658";
+            break;  // White Knight
+          case 3:
+            pieceStr = "\u2657";
+            break;  // White Bishop
+          case 4:
+            pieceStr = "\u2656";
+            break;  // White Rook
+          case 5:
+            pieceStr = "\u2655";
+            break;  // White Queen
+          case 6:
+            pieceStr = "\u2654";
+            break;  // White King
+          case -1:
+            pieceStr = "\u265F";
+            break;  // Black Pawn
+          case -2:
+            pieceStr = "\u265E";
+            break;  // Black Knight
+          case -3:
+            pieceStr = "\u265D";
+            break;  // Black Bishop
+          case -4:
+            pieceStr = "\u265C";
+            break;  // Black Rook
+          case -5:
+            pieceStr = "\u265B";
+            break;  // Black Queen
+          case -6:
+            pieceStr = "\u265A";
+            break;  // Black King
         }
 
         int tW = renderer.getTextWidth(NOTOSANS_16_EMOJI_FONT_ID, pieceStr);

@@ -1,9 +1,10 @@
 #include "SudokuActivity.h"
 
+#include <Arduino.h>
 #include <GfxRenderer.h>
 #include <I18n.h>
+
 #include <cstdlib>
-#include <Arduino.h>
 
 #include "MappedInputManager.h"
 #include "components/UITheme.h"
@@ -15,23 +16,13 @@ void SudokuActivity::onEnter() {
   generateNewPuzzle();
 }
 
-void SudokuActivity::onExit() {
-  Activity::onExit();
-}
+void SudokuActivity::onExit() { Activity::onExit(); }
 
 void SudokuActivity::generateNewPuzzle() {
   // Start with a valid base grid
-  const int baseGrid[9][9] = {
-    {1, 2, 3,  4, 5, 6,  7, 8, 9},
-    {4, 5, 6,  7, 8, 9,  1, 2, 3},
-    {7, 8, 9,  1, 2, 3,  4, 5, 6},
-    {2, 3, 1,  5, 6, 4,  8, 9, 7},
-    {5, 6, 4,  8, 9, 7,  2, 3, 1},
-    {8, 9, 7,  2, 3, 1,  5, 6, 4},
-    {3, 1, 2,  6, 4, 5,  9, 7, 8},
-    {6, 4, 5,  9, 7, 8,  3, 1, 2},
-    {9, 7, 8,  3, 1, 2,  6, 4, 5}
-  };
+  const int baseGrid[9][9] = {{1, 2, 3, 4, 5, 6, 7, 8, 9}, {4, 5, 6, 7, 8, 9, 1, 2, 3}, {7, 8, 9, 1, 2, 3, 4, 5, 6},
+                              {2, 3, 1, 5, 6, 4, 8, 9, 7}, {5, 6, 4, 8, 9, 7, 2, 3, 1}, {8, 9, 7, 2, 3, 1, 5, 6, 4},
+                              {3, 1, 2, 6, 4, 5, 9, 7, 8}, {6, 4, 5, 9, 7, 8, 3, 1, 2}, {9, 7, 8, 3, 1, 2, 6, 4, 5}};
 
   // Copy base grid to board
   for (int i = 0; i < 9; i++) {
@@ -41,7 +32,7 @@ void SudokuActivity::generateNewPuzzle() {
   }
 
   // 1. Permute digits (1-9)
-  int mapDigits[10]; // 1-indexed
+  int mapDigits[10];  // 1-indexed
   for (int i = 1; i <= 9; i++) mapDigits[i] = i;
   for (int i = 9; i > 1; i--) {
     int j = 1 + (rand() % i);
@@ -152,7 +143,7 @@ void SudokuActivity::loop() {
     if (mappedInput.wasReleased(MappedInputManager::Button::Up)) {
       if (cursorRow == 0) {
         cursorRow = -1;
-        cursorCol = 0; // Highlight "New Game"
+        cursorCol = 0;  // Highlight "New Game"
       } else if (cursorRow == -1) {
         cursorRow = 8;
       } else {
@@ -162,7 +153,7 @@ void SudokuActivity::loop() {
     } else if (mappedInput.wasReleased(MappedInputManager::Button::Down)) {
       if (cursorRow == 8) {
         cursorRow = -1;
-        cursorCol = 0; // Highlight "New Game"
+        cursorCol = 0;  // Highlight "New Game"
       } else if (cursorRow == -1) {
         cursorRow = 0;
       } else {
@@ -171,14 +162,14 @@ void SudokuActivity::loop() {
       requestUpdate();
     } else if (mappedInput.wasReleased(MappedInputManager::Button::Left)) {
       if (cursorRow == -1) {
-        cursorCol = (cursorCol - 1 + 2) % 2; // Toggles between 0 (New Game) and 1 (Check)
+        cursorCol = (cursorCol - 1 + 2) % 2;  // Toggles between 0 (New Game) and 1 (Check)
       } else {
         cursorCol = (cursorCol - 1 + 9) % 9;
       }
       requestUpdate();
     } else if (mappedInput.wasReleased(MappedInputManager::Button::Right)) {
       if (cursorRow == -1) {
-        cursorCol = (cursorCol + 1) % 2; // Toggles between 0 (New Game) and 1 (Check)
+        cursorCol = (cursorCol + 1) % 2;  // Toggles between 0 (New Game) and 1 (Check)
       } else {
         cursorCol = (cursorCol + 1) % 9;
       }
@@ -258,7 +249,7 @@ void SudokuActivity::render(RenderLock&&) {
       }
 
       if (board[r][c] != 0) {
-        char buf[2] = { static_cast<char>('0' + board[r][c]), '\0' };
+        char buf[2] = {static_cast<char>('0' + board[r][c]), '\0'};
         EpdFontFamily::Style style = initial[r][c] ? EpdFontFamily::BOLD : EpdFontFamily::REGULAR;
         int textWidth = renderer.getTextWidth(UI_12_FONT_ID, buf, style);
         int textHeight = renderer.getLineHeight(UI_12_FONT_ID);
@@ -302,8 +293,7 @@ void SudokuActivity::render(RenderLock&&) {
     renderer.drawCenteredText(UI_12_FONT_ID, curY, "CONGRATULATIONS!", true, EpdFontFamily::BOLD);
     curY += renderer.getLineHeight(UI_12_FONT_ID) + 15;
     renderer.drawCenteredText(SMALL_FONT_ID, curY, "You solved the puzzle!", true, EpdFontFamily::REGULAR);
-  }
-  else if (isEditingValue) {
+  } else if (isEditingValue) {
     // Value selector bar
     const int barY = pageHeight - metrics.buttonHintsHeight - 65;
     const int barH = 40;
@@ -321,9 +311,9 @@ void SudokuActivity::render(RenderLock&&) {
         renderer.fillRoundedRect(itemX, barY, itemW, barH, 6, Color::Black);
       }
 
-      char buf[2] = { '\0', '\0' };
+      char buf[2] = {'\0', '\0'};
       if (i == 0) {
-        buf[0] = 'X'; // Clear option
+        buf[0] = 'X';  // Clear option
       } else {
         buf[0] = '0' + i;
       }

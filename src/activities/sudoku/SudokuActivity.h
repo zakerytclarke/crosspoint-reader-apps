@@ -1,7 +1,8 @@
 #pragma once
 
-#include "activities/Activity.h"
 #include <string>
+
+#include "activities/Activity.h"
 
 class SudokuActivity final : public Activity {
  private:
@@ -13,7 +14,7 @@ class SudokuActivity final : public Activity {
   int cursorCol = 0;
 
   bool isEditingValue = false;
-  int selectedValIndex = 0; // 0 = Clear, 1-9 = values
+  int selectedValIndex = 0;  // 0 = Clear, 1-9 = values
 
   bool isChecked = false;
   bool hasWon = false;

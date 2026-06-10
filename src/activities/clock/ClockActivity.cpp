@@ -1,9 +1,12 @@
 #include "ClockActivity.h"
+
 #include <HalClock.h>
-#include "CrossPointSettings.h"
-#include "fontIds.h"
-#include "components/UITheme.h"
+
 #include <cmath>
+
+#include "CrossPointSettings.h"
+#include "components/UITheme.h"
+#include "fontIds.h"
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -11,76 +14,16 @@
 
 // 5x7 block font for digits 0-9
 static const uint8_t font5x7[10][7] = {
-  {0b11111,
-   0b10001,
-   0b10001,
-   0b10001,
-   0b10001,
-   0b10001,
-   0b11111}, // 0
-  {0b00100,
-   0b01100,
-   0b00100,
-   0b00100,
-   0b00100,
-   0b00100,
-   0b01110}, // 1
-  {0b11111,
-   0b00001,
-   0b00001,
-   0b11111,
-   0b10000,
-   0b10000,
-   0b11111}, // 2
-  {0b11111,
-   0b00001,
-   0b00001,
-   0b11111,
-   0b00001,
-   0b00001,
-   0b11111}, // 3
-  {0b10001,
-   0b10001,
-   0b10001,
-   0b11111,
-   0b00001,
-   0b00001,
-   0b00001}, // 4
-  {0b11111,
-   0b10000,
-   0b10000,
-   0b11111,
-   0b00001,
-   0b00001,
-   0b11111}, // 5
-  {0b11111,
-   0b10000,
-   0b10000,
-   0b11111,
-   0b10001,
-   0b10001,
-   0b11111}, // 6
-  {0b11111,
-   0b00001,
-   0b00001,
-   0b00010,
-   0b00100,
-   0b01000,
-   0b01000}, // 7
-  {0b11111,
-   0b10001,
-   0b10001,
-   0b11111,
-   0b10001,
-   0b10001,
-   0b11111}, // 8
-  {0b11111,
-   0b10001,
-   0b10001,
-   0b11111,
-   0b00001,
-   0b00001,
-   0b11111}  // 9
+    {0b11111, 0b10001, 0b10001, 0b10001, 0b10001, 0b10001, 0b11111},  // 0
+    {0b00100, 0b01100, 0b00100, 0b00100, 0b00100, 0b00100, 0b01110},  // 1
+    {0b11111, 0b00001, 0b00001, 0b11111, 0b10000, 0b10000, 0b11111},  // 2
+    {0b11111, 0b00001, 0b00001, 0b11111, 0b00001, 0b00001, 0b11111},  // 3
+    {0b10001, 0b10001, 0b10001, 0b11111, 0b00001, 0b00001, 0b00001},  // 4
+    {0b11111, 0b10000, 0b10000, 0b11111, 0b00001, 0b00001, 0b11111},  // 5
+    {0b11111, 0b10000, 0b10000, 0b11111, 0b10001, 0b10001, 0b11111},  // 6
+    {0b11111, 0b00001, 0b00001, 0b00010, 0b00100, 0b01000, 0b01000},  // 7
+    {0b11111, 0b10001, 0b10001, 0b11111, 0b10001, 0b10001, 0b11111},  // 8
+    {0b11111, 0b10001, 0b10001, 0b11111, 0b00001, 0b00001, 0b11111}   // 9
 };
 
 // Correct Midpoint Circle helper (Bresenham's)
@@ -99,7 +42,7 @@ static void drawCircle(const GfxRenderer& renderer, int x0, int y0, int radius, 
       renderer.drawPixel(x0 - y, y0 - x, state);
       renderer.drawPixel(x0 + y, y0 - x, state);
       renderer.drawPixel(x0 + x, y0 - y, state);
-      
+
       if (err >= 0) {
         x -= 1;
         err += 4 * (y - x) + 10;
@@ -129,7 +72,6 @@ static void fillCircle(const GfxRenderer& renderer, int x0, int y0, int radius, 
     y += 1;
   }
 }
-
 
 ClockActivity::ClockActivity(GfxRenderer& renderer, MappedInputManager& mappedInput)
     : Activity("Clock", renderer, mappedInput),
@@ -182,21 +124,26 @@ void ClockActivity::loop() {
   }
 
   if (mappedInput.wasReleased(MappedInputManager::Button::Left)) {
-    if (mode == ClockMode::Analog) mode = ClockMode::Flip;
-    else if (mode == ClockMode::Digital) mode = ClockMode::Analog;
-    else mode = ClockMode::Digital;
+    if (mode == ClockMode::Analog)
+      mode = ClockMode::Flip;
+    else if (mode == ClockMode::Digital)
+      mode = ClockMode::Analog;
+    else
+      mode = ClockMode::Digital;
     requestUpdate();
   } else if (mappedInput.wasReleased(MappedInputManager::Button::Right)) {
-    if (mode == ClockMode::Analog) mode = ClockMode::Digital;
-    else if (mode == ClockMode::Digital) mode = ClockMode::Flip;
-    else mode = ClockMode::Analog;
+    if (mode == ClockMode::Analog)
+      mode = ClockMode::Digital;
+    else if (mode == ClockMode::Digital)
+      mode = ClockMode::Flip;
+    else
+      mode = ClockMode::Analog;
     requestUpdate();
   } else if (mappedInput.wasReleased(MappedInputManager::Button::Confirm)) {
     use12Hour = !use12Hour;
     requestUpdate();
   }
 }
-
 
 void ClockActivity::drawDigit(int x, int y, int digit, int blockSize, Color color) {
   if (digit < 0 || digit > 9) return;
@@ -217,7 +164,8 @@ void ClockActivity::drawColon(int x, int y, int blockSize, Color color) {
   renderer.fillRect(x, y + 4 * blockSize, blockSize, blockSize, state);
 }
 
-void ClockActivity::drawAnalogClock(const ThemeMetrics& metrics, int contentTop, int contentHeight, int pageWidth, uint8_t hour, uint8_t minute) {
+void ClockActivity::drawAnalogClock(const ThemeMetrics& metrics, int contentTop, int contentHeight, int pageWidth,
+                                    uint8_t hour, uint8_t minute) {
   int cx = pageWidth / 2;
   int cy = contentTop + contentHeight / 2;
   int radius = 120;
@@ -249,14 +197,15 @@ void ClockActivity::drawAnalogClock(const ThemeMetrics& metrics, int contentTop,
   int my = cy - (int)(mLength * cosf(minuteAngleRad));
 
   // Draw Hands
-  renderer.drawLine(cx, cy, hx, hy, 4, true); // Hour hand (Thick)
-  renderer.drawLine(cx, cy, mx, my, 2, true); // Minute hand (Medium)
+  renderer.drawLine(cx, cy, hx, hy, 4, true);  // Hour hand (Thick)
+  renderer.drawLine(cx, cy, mx, my, 2, true);  // Minute hand (Medium)
 
   // Pin Center
   fillCircle(renderer, cx, cy, 6, true);
 }
 
-void ClockActivity::drawDigitalClock(const ThemeMetrics& metrics, int contentTop, int contentHeight, int pageWidth, uint8_t hour, uint8_t minute) {
+void ClockActivity::drawDigitalClock(const ThemeMetrics& metrics, int contentTop, int contentHeight, int pageWidth,
+                                     uint8_t hour, uint8_t minute) {
   int blockSize = 18;
   int digitW = 5 * blockSize;
   int digitH = 7 * blockSize;
@@ -297,7 +246,8 @@ void ClockActivity::drawDigitalClock(const ThemeMetrics& metrics, int contentTop
   renderer.drawCenteredText(NOTOSANS_14_FONT_ID, startY + digitH + 30, infoBuf);
 }
 
-void ClockActivity::drawFlipClock(const ThemeMetrics& metrics, int contentTop, int contentHeight, int pageWidth, uint8_t hour, uint8_t minute) {
+void ClockActivity::drawFlipClock(const ThemeMetrics& metrics, int contentTop, int contentHeight, int pageWidth,
+                                  uint8_t hour, uint8_t minute) {
   int cardW = 90;
   int cardH = 136;
   int spacing = 10;
@@ -327,10 +277,10 @@ void ClockActivity::drawFlipClock(const ThemeMetrics& metrics, int contentTop, i
     drawDigit(x + 15, startY + 26, digit, 12, Color::White);
 
     // 3. Draw horizontal flip seam line
-    renderer.drawLine(x, startY + cardH / 2, x + cardW, startY + cardH / 2, 2, false); // state = false (White)
+    renderer.drawLine(x, startY + cardH / 2, x + cardW, startY + cardH / 2, 2, false);  // state = false (White)
 
     // 4. Draw clips on side borders at the seam
-    renderer.fillRect(x - 2, startY + cardH / 2 - 4, 4, 8, true); // Black clip
+    renderer.fillRect(x - 2, startY + cardH / 2 - 4, 4, 8, true);  // Black clip
     renderer.fillRect(x + cardW - 2, startY + cardH / 2 - 4, 4, 8, true);
   };
 

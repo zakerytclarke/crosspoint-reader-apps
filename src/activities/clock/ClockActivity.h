@@ -1,14 +1,11 @@
 #pragma once
 
-#include "activities/Activity.h"
-#include "components/themes/BaseTheme.h"
 #include <cstdint>
 
-enum class ClockMode {
-  Analog,
-  Digital,
-  Flip
-};
+#include "activities/Activity.h"
+#include "components/themes/BaseTheme.h"
+
+enum class ClockMode { Analog, Digital, Flip };
 
 class ClockActivity final : public Activity {
  public:
@@ -26,10 +23,13 @@ class ClockActivity final : public Activity {
   unsigned long lastTimeCheck = 0;
 
   void getLocalTime(uint8_t& hour, uint8_t& minute);
-  void drawAnalogClock(const ThemeMetrics& metrics, int contentTop, int contentHeight, int pageWidth, uint8_t hour, uint8_t minute);
-  void drawDigitalClock(const ThemeMetrics& metrics, int contentTop, int contentHeight, int pageWidth, uint8_t hour, uint8_t minute);
-  void drawFlipClock(const ThemeMetrics& metrics, int contentTop, int contentHeight, int pageWidth, uint8_t hour, uint8_t minute);
-  
+  void drawAnalogClock(const ThemeMetrics& metrics, int contentTop, int contentHeight, int pageWidth, uint8_t hour,
+                       uint8_t minute);
+  void drawDigitalClock(const ThemeMetrics& metrics, int contentTop, int contentHeight, int pageWidth, uint8_t hour,
+                        uint8_t minute);
+  void drawFlipClock(const ThemeMetrics& metrics, int contentTop, int contentHeight, int pageWidth, uint8_t hour,
+                     uint8_t minute);
+
   void drawDigit(int x, int y, int digit, int blockSize, Color color);
   void drawColon(int x, int y, int blockSize, Color color);
 };
